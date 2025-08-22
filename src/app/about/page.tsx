@@ -5,8 +5,8 @@ export default function About() {
         <h1 className="text-4xl font-bold mb-8">About Maria</h1>
         <div className="max-w-3xl space-y-4 text-gray-300">
           <p>
-            As CEO of SynapseDx, I'm passionate about leveraging 
-            artificial intelligence to solve healthcare's biggest challenges.
+            As CEO of SynapseDx, I&apos;m passionate about leveraging 
+            artificial intelligence to solve healthcare&apos;s biggest challenges.
           </p>
           <p>
             My journey in healthcare innovation began...
