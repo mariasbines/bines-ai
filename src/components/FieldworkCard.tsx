@@ -29,11 +29,11 @@ export function FieldworkCard({ piece }: FieldworkCardProps) {
 
   return (
     <article
-      className="border-t border-ink/15 pt-6 pb-10"
+      className="bg-paper-2 border border-ink/20 rounded-sm px-8 py-8 sm:px-10 sm:py-10 shadow-[0_1px_0_rgba(26,24,20,0.06)] border-t-[6px] border-t-accent"
       style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
     >
       <div className="font-mono text-xs uppercase tracking-[0.14em] text-ink/60 mb-4">
-        <span className="text-accent">fieldwork {idPadded}</span>
+        <span className="text-accent font-bold">fieldwork {idPadded}</span>
         <span className="mx-2 text-ink/30" aria-hidden="true">
           ·
         </span>

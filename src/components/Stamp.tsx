@@ -14,9 +14,8 @@ interface StampProps {
  * `text-emerald` element to recolour without touching the component.
  *
  * Size drops different content at smaller renderings:
- *   240 / 96  — full stamp with top + bottom curved text + b
- *   56        — just the rings + b (text dropped, too small to read)
- *   32        — outer ring (thickened) + b, favicon-scale
+ *   240 / 96 / 56 — full stamp with top + bottom curved text + b
+ *   32            — outer ring (thickened) + b, favicon-scale (text too small to read)
  *
  * Each instance gets unique `defs` IDs via useId() so multiple stamps
  * on one page don't collide.
@@ -30,7 +29,7 @@ export function Stamp({
   const topId = `${uid}-top`;
   const botId = `${uid}-bot`;
 
-  const showText = size >= 96;
+  const showText = size >= 56;
   const showInnerRing = size >= 56;
 
   // Scale the outer stroke up at favicon sizes so the ring stays visible
