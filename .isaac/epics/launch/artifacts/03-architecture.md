@@ -261,22 +261,34 @@ Public endpoint, paid upstream API → must rate-limit.
 
 Defined in `app/globals.css` via Tailwind v4 `@theme`. Editorial-maximalist direction.
 
-### Starting palette (to iterate)
+### Palette — locked (Palette A "Jewel editorial on cream")
 
-Saturated limited palette. Any given page uses 2-4 colours max; the site rotates which anchors appear across pieces.
+Chosen from the 22 Apr mood board review (`~/Documents/bines-ai-brainstorm/palette-moodboard.html`). Maria's note: *"jewel editorial was my favourite because of the choice of colours that feel ironically more modern."*
+
+Warm paper ground + deep jewel anchors. Mid-century editorial lineage (MoMA poster store / Penguin Classics deluxe / Girard / Harper). Per-piece discipline: paper + ink + **one** jewel anchor; rotate across pieces so the site-wide palette is rich but each page is tight.
 
 ```css
 @theme {
-  --color-ink: #0F0F0F;           /* deep charcoal — body text */
-  --color-paper: #F6F0E4;         /* warm cream — background */
-  --color-tangerine: #F25C1C;     /* anchor 1 — bold headline */
-  --color-cerulean: #1974D2;      /* anchor 2 — alternative accent */
-  --color-navy: #0F2137;          /* anchor 3 — grounding */
-  --color-magenta: #C2195E;       /* rotating accent */
-  --color-mustard: #D9A441;       /* rotating accent */
-  --color-olive: #5B6B3B;         /* rotating accent */
+  /* ground + type */
+  --color-paper: #F0E6D0;     /* warm cream — site background */
+  --color-paper-2: #FAF3DE;   /* lifted surface — card background */
+  --color-ink: #1A1814;       /* deep warm black — body text */
+
+  /* rotating jewel anchors (one per piece) */
+  --color-emerald: #0F7B5A;   /* serious, composed */
+  --color-sapphire: #1B3A8C;  /* confident */
+  --color-ruby: #B0213A;      /* warm, declarative */
+  --color-topaz: #C28F2A;     /* golden, luxe not acid */
+  --color-amethyst: #3F1E4C;  /* quiet, intellectual */
 }
 ```
+
+Semantic tokens (mapped from the raw palette):
+- `--color-bg` → `--color-paper`
+- `--color-surface` → `--color-paper-2`
+- `--color-text` → `--color-ink`
+- `--color-accent` → per-page jewel (selected in frontmatter or via route config)
+- `--color-destructive` / `--color-warning` → `--color-ruby` (reuse; no separate error palette)
 
 ### Typography (starting pairing — Google Fonts, free)
 
