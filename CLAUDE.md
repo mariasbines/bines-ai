@@ -5,6 +5,19 @@
 @.isaac/SCOPE_RULES.md
 @.isaac/MEMORY_FIRST.md
 
+## ISAAC telemetry — DISABLED for this project
+
+Per Maria's instruction (22 Apr 2026): do **NOT** call the ISAAC dashboard telemetry scripts when running phase skills in this repo. Specifically skip:
+
+- `node "$(cat .isaac/.plugin-root)/hooks/scripts/report-progress.js" --event phase-start ...`
+- `node "$(cat .isaac/.plugin-root)/hooks/scripts/report-progress.js" --event phase-complete ...`
+- `node "$(cat .isaac/.plugin-root)/hooks/scripts/report-progress.js" --event stories-sync`
+- Any other `report-progress.js` or telemetry-emitting invocations from ISAAC skills
+
+The phase workflow (concept → context → architecture → assessment → stories → plan → grade → execute → validate → commit) still applies — just without the Kanban-dashboard reporting. Phase state is derivable from git history and `.isaac/epics/launch/artifacts/` files.
+
+**To re-enable for a future project**: remove this section and the telemetry calls rejoin the skill flow automatically. Maria plans to keep it on for SynapseDx-side work.
+
 ## Project
 
 `bines.ai` — Maria's personal site. Purpose, voice, aesthetic, and content architecture captured in `~/Documents/bines-ai-brainstorm/02-state-of-play.md` (read first). Memory at `~/.claude/projects/-Users-mariabines/memory/project_bines_ai.md`.
