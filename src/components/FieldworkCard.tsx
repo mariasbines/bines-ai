@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Fieldwork } from '@/lib/content/types';
 import { accentFor, accentVar } from '@/lib/design/accent';
 import { Metadata } from './Metadata';
+import { FieldworkCardCtas } from './FieldworkCardCtas';
 
 interface FieldworkCardProps {
   piece: Fieldwork;
@@ -10,7 +11,8 @@ interface FieldworkCardProps {
 /**
  * Homepage / feed card for a Fieldwork piece. Top strip "FIELDWORK NN · status",
  * title in Fraunces, metadata data-strip, CTA row. Per-piece jewel accent set
- * via --color-accent on the root. No client JS.
+ * via --color-accent on the root. CTAs extracted into a small client island
+ * (FieldworkCardCtas) that manages WatchDialog state.
  */
 export function FieldworkCard({ piece }: FieldworkCardProps) {
   const { id, slug, title, status } = piece.frontmatter;
@@ -49,32 +51,7 @@ export function FieldworkCard({ piece }: FieldworkCardProps) {
 
       <Metadata piece={piece} className="mb-6" />
 
-      <div className="font-mono text-xs uppercase tracking-[0.14em] flex flex-wrap gap-3">
-        <button
-          type="button"
-          data-fieldwork-cta="watch"
-          disabled
-          className="border border-ink/20 px-3 py-1.5 text-ink/40 cursor-not-allowed"
-          aria-label="Watch video (coming in 001.013)"
-        >
-          [ watch ]
-        </button>
-        <Link
-          href={`/fieldwork/${slug}`}
-          className="border border-accent px-3 py-1.5 text-accent hover:bg-accent hover:text-paper transition-colors motion-reduce:transition-none"
-        >
-          [ read ]
-        </Link>
-        <button
-          type="button"
-          data-fieldwork-cta="push-back"
-          disabled
-          className="border border-ink/20 px-3 py-1.5 text-ink/40 cursor-not-allowed"
-          aria-label="Push back (coming in 001.014)"
-        >
-          [ push back ]
-        </button>
-      </div>
+      <FieldworkCardCtas piece={piece} />
     </article>
   );
 }

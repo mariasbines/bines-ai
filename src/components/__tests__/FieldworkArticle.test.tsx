@@ -8,10 +8,15 @@ vi.mock('../MdxBody', () => ({
   ),
 }));
 
+// Mock VideoLoop to avoid needing jsdom video / IntersectionObserver support.
+vi.mock('../VideoLoop', () => ({
+  VideoLoop: ({ alt }: { alt: string }) => <div data-testid="video-loop">{alt}</div>,
+}));
+
 import { FieldworkArticle } from '../FieldworkArticle';
 import type { Fieldwork } from '@/lib/content/types';
 
-const piece: Fieldwork = {
+const basePiece: Fieldwork = {
   frontmatter: {
     id: 3,
     slug: '03-foo',
@@ -29,24 +34,39 @@ const piece: Fieldwork = {
 
 describe('<FieldworkArticle>', () => {
   it('renders an h1 with the piece title', () => {
-    render(<FieldworkArticle piece={piece} />);
+    render(<FieldworkArticle piece={basePiece} />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Foo Bar');
   });
   it('wraps in <article>', () => {
-    const { container } = render(<FieldworkArticle piece={piece} />);
+    const { container } = render(<FieldworkArticle piece={basePiece} />);
     expect(container.querySelector('article')).toBeInTheDocument();
   });
-  it('renders the video-loop placeholder', () => {
-    render(<FieldworkArticle piece={piece} />);
-    expect(screen.getByLabelText(/Video loop placeholder/)).toBeInTheDocument();
+  it('omits the video slot when no headerVideo is present', () => {
+    render(<FieldworkArticle piece={basePiece} />);
+    expect(screen.queryByTestId('video-loop')).not.toBeInTheDocument();
+  });
+  it('renders VideoLoop when headerVideo + posterFrame are present', () => {
+    const withVideo: Fieldwork = {
+      ...basePiece,
+      frontmatter: {
+        ...basePiece.frontmatter,
+        media: {
+          readMinutes: 5,
+          headerVideo: 'https://blob.example/vid.mp4',
+          posterFrame: 'https://blob.example/poster.jpg',
+        },
+      } as Fieldwork['frontmatter'],
+    };
+    render(<FieldworkArticle piece={withVideo} />);
+    expect(screen.getByTestId('video-loop')).toBeInTheDocument();
   });
   it('shows retired banner for retired pieces', () => {
     render(
       <FieldworkArticle
         piece={{
-          ...piece,
+          ...basePiece,
           frontmatter: {
-            ...piece.frontmatter,
+            ...basePiece.frontmatter,
             status: 'retired-still-right',
           } as Fieldwork['frontmatter'],
         }}
@@ -59,7 +79,7 @@ describe('<FieldworkArticle>', () => {
     );
   });
   it('renders the MDX body via MdxBody', () => {
-    render(<FieldworkArticle piece={piece} />);
+    render(<FieldworkArticle piece={basePiece} />);
     expect(screen.getByTestId('mdx-body')).toHaveTextContent('Body content');
   });
 });

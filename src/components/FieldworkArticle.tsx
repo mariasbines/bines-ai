@@ -2,17 +2,18 @@ import type { Fieldwork } from '@/lib/content/types';
 import { accentFor, accentVar } from '@/lib/design/accent';
 import { Metadata } from './Metadata';
 import { MdxBody } from './MdxBody';
-import { VideoLoopPlaceholder } from './VideoLoopPlaceholder';
+import { VideoLoop } from './VideoLoop';
 
 interface FieldworkArticleProps {
   piece: Fieldwork;
 }
 
 export function FieldworkArticle({ piece }: FieldworkArticleProps) {
-  const { id, title, status } = piece.frontmatter;
+  const { id, title, status, media } = piece.frontmatter;
   const accent = accentFor(piece);
   const idPadded = id.toString().padStart(2, '0');
   const isRetired = status === 'retired-still-right' || status === 'retired-evolved';
+  const hasHeaderVideo = !!(media.headerVideo && media.posterFrame);
 
   return (
     <article
@@ -34,7 +35,16 @@ export function FieldworkArticle({ piece }: FieldworkArticleProps) {
           </span>
         </div>
 
-        <VideoLoopPlaceholder className="mb-10" />
+        {hasHeaderVideo ? (
+          <VideoLoop
+            src={media.headerVideo!}
+            poster={media.posterFrame!}
+            captions={media.captions}
+            alt={`Atmospheric loop header for ${title}`}
+            priority
+            className="mb-10"
+          />
+        ) : null}
 
         <h1 className="font-serif font-black text-[clamp(2.125rem,5vw,3.375rem)] leading-[1.05] tracking-tight mb-8">
           {title}
