@@ -19,14 +19,6 @@ const TAG = z
     'tag must be lowercase-kebab (alphanumeric + single hyphens)',
   );
 
-const FIELDWORK_STATUS = z.enum([
-  'in-rotation',
-  'retired-still-right',
-  'retired-evolved',
-  'changed-my-mind',
-]);
-export type FieldworkStatus = z.infer<typeof FIELDWORK_STATUS>;
-
 const MEDIA = z.object({
   readMinutes: z.number().int().positive(),
   watchMinutes: z.number().int().positive().optional(),
@@ -49,33 +41,24 @@ const CHANGE_MY_MIND = z.object({
 });
 
 /**
- * Fieldwork frontmatter — base schema.
+ * Fieldwork frontmatter — discriminated union on `status`.
  *
- * NOTE: 001.010 will extend this into a discriminated union on `status`.
- * For 001.003 we accept all four enum values on `status` and leave the
- * changed-my-mind extension fields (`supersedes`, `originalPosition`,
- * `newPosition`) as optional top-level fields. Callers that don't care
- * (001.004 - 001.009) simply ignore them.
+ * - `in-rotation`, `retired-still-right`, `retired-evolved` share the base shape.
+ * - `changed-my-mind` additionally REQUIRES `supersedes`, `originalPosition`,
+ *   `newPosition` (tightened in story 001.010).
  */
-export const FIELDWORK_FRONTMATTER = z.object({
+const FIELDWORK_BASE = z.object({
   id: z.number().int().positive(),
   slug: z
     .string()
     .min(1)
-    .regex(
-      /^[a-z0-9]+(-[a-z0-9]+)*$/,
-      'slug must be lowercase-kebab',
-    ),
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'slug must be lowercase-kebab'),
   title: z.string().min(1),
   published: z.iso.date(),
   revised: z.array(z.iso.date()).optional(),
-  status: FIELDWORK_STATUS,
   retiredAt: z.iso.date().optional(),
   retiredReason: z.string().optional(),
   retiredReplacedBy: z.string().optional(),
-  supersedes: z.string().optional(),
-  originalPosition: z.string().optional(),
-  newPosition: z.string().optional(),
   tags: z.array(TAG).min(1, 'fieldwork must have at least one tag'),
   media: MEDIA,
   pushback: PUSHBACK,
@@ -83,7 +66,21 @@ export const FIELDWORK_FRONTMATTER = z.object({
   excerpt: z.string().min(1),
   accent: ACCENT_TOKEN.optional(),
 });
+
+export const FIELDWORK_FRONTMATTER = z.discriminatedUnion('status', [
+  FIELDWORK_BASE.extend({ status: z.literal('in-rotation') }),
+  FIELDWORK_BASE.extend({ status: z.literal('retired-still-right') }),
+  FIELDWORK_BASE.extend({ status: z.literal('retired-evolved') }),
+  FIELDWORK_BASE.extend({
+    status: z.literal('changed-my-mind'),
+    supersedes: z.string().min(1),
+    originalPosition: z.string().min(1),
+    newPosition: z.string().min(1),
+  }),
+]);
+
 export type FieldworkFrontmatter = z.infer<typeof FIELDWORK_FRONTMATTER>;
+export type FieldworkStatus = FieldworkFrontmatter['status'];
 
 export interface Fieldwork {
   frontmatter: FieldworkFrontmatter;

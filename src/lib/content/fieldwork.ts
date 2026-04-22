@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { listMdxFiles, readMdxFile } from './mdx';
+import { ContentValidationError, listMdxFiles, readMdxFile } from './mdx';
 import { contentPaths, DEFAULT_CONTENT_ROOT } from './paths';
 import { FIELDWORK_FRONTMATTER, type Fieldwork, type FieldworkStatus } from './types';
 
@@ -63,4 +63,36 @@ export async function getFieldworkGroupedByStatus(
     groups[piece.frontmatter.status].push(piece);
   }
   return groups;
+}
+
+/**
+ * Validate that each `changed-my-mind` piece's `supersedes` points at a real
+ * Fieldwork slug with a retired status. Throws ContentValidationError on
+ * mismatch. Intended for build-time invocation (e.g. from
+ * /changed-my-mind/[slug]/generateStaticParams).
+ */
+export function validateChangedMyMindReferences(pieces: Fieldwork[]): void {
+  const bySlug = new Map(pieces.map((p) => [p.frontmatter.slug, p]));
+  for (const piece of pieces) {
+    if (piece.frontmatter.status !== 'changed-my-mind') continue;
+    const supersedes = piece.frontmatter.supersedes;
+    const target = bySlug.get(supersedes);
+    if (!target) {
+      throw new ContentValidationError(
+        piece.filePath,
+        { supersedes },
+        `${piece.filePath}: supersedes references unknown slug "${supersedes}"`,
+      );
+    }
+    if (
+      target.frontmatter.status !== 'retired-still-right' &&
+      target.frontmatter.status !== 'retired-evolved'
+    ) {
+      throw new ContentValidationError(
+        piece.filePath,
+        { supersedes, targetStatus: target.frontmatter.status },
+        `${piece.filePath}: supersedes target "${supersedes}" has status "${target.frontmatter.status}"; must be retired`,
+      );
+    }
+  }
 }

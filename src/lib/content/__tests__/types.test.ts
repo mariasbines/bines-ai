@@ -67,10 +67,53 @@ describe('FIELDWORK_FRONTMATTER', () => {
       'retired-evolved',
       'changed-my-mind',
     ] as const) {
-      const r = FIELDWORK_FRONTMATTER.safeParse({ ...VALID_FIELDWORK, status });
+      const fixture = status === 'changed-my-mind'
+        ? { ...VALID_FIELDWORK, status, supersedes: 's', originalPosition: 'o', newPosition: 'n' }
+        : { ...VALID_FIELDWORK, status };
+      const r = FIELDWORK_FRONTMATTER.safeParse(fixture);
       expect(r.success).toBe(true);
     }
   });
+  describe('changed-my-mind discriminated variant', () => {
+    it('rejects changed-my-mind without supersedes', () => {
+      const r = FIELDWORK_FRONTMATTER.safeParse({
+        ...VALID_FIELDWORK,
+        status: 'changed-my-mind',
+        originalPosition: 'o',
+        newPosition: 'n',
+      });
+      expect(r.success).toBe(false);
+    });
+    it('rejects changed-my-mind without originalPosition', () => {
+      const r = FIELDWORK_FRONTMATTER.safeParse({
+        ...VALID_FIELDWORK,
+        status: 'changed-my-mind',
+        supersedes: 's',
+        newPosition: 'n',
+      });
+      expect(r.success).toBe(false);
+    });
+    it('rejects changed-my-mind without newPosition', () => {
+      const r = FIELDWORK_FRONTMATTER.safeParse({
+        ...VALID_FIELDWORK,
+        status: 'changed-my-mind',
+        supersedes: 's',
+        originalPosition: 'o',
+      });
+      expect(r.success).toBe(false);
+    });
+    it('accepts changed-my-mind with all three extra fields', () => {
+      const r = FIELDWORK_FRONTMATTER.safeParse({
+        ...VALID_FIELDWORK,
+        status: 'changed-my-mind',
+        supersedes: 's',
+        originalPosition: 'o',
+        newPosition: 'n',
+      });
+      expect(r.success).toBe(true);
+    });
+  });
+
 });
 
 describe('POSTCARD_FRONTMATTER', () => {

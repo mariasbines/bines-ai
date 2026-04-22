@@ -7,7 +7,9 @@ import {
   getFieldworkBySlug,
   getFieldworkByStatus,
   getFieldworkGroupedByStatus,
+  validateChangedMyMindReferences,
 } from '../fieldwork';
+import type { Fieldwork } from '../types';
 
 let tmp: string;
 
@@ -113,5 +115,82 @@ describe('malformed frontmatter', () => {
     // Addresses L-001 from the grade — harder error-path coverage
     await fs.writeFile(path.join(tmp, 'fieldwork', 'empty.mdx'), `---\n---\nbody`);
     await expect(getAllFieldwork({ contentRoot: tmp })).rejects.toThrow(/empty\.mdx/);
+  });
+});
+
+function makePiece(extras: {
+  slug: string;
+  status: Fieldwork['frontmatter']['status'];
+  supersedes?: string;
+  originalPosition?: string;
+  newPosition?: string;
+}): Fieldwork {
+  const base = {
+    id: 1,
+    title: 't',
+    published: '2026-04-22',
+    tags: ['memory'],
+    media: { readMinutes: 5 },
+    pushback: { count: 0 },
+    excerpt: 'e',
+    ...extras,
+  } as Fieldwork['frontmatter'];
+  return { frontmatter: base, body: '', filePath: `/tmp/${extras.slug}.mdx` };
+}
+
+describe('validateChangedMyMindReferences', () => {
+  it('passes when no changed-my-mind pieces exist', () => {
+    expect(() => validateChangedMyMindReferences([])).not.toThrow();
+  });
+  it('passes when supersedes points at a retired-still-right piece', () => {
+    const pieces = [
+      makePiece({ slug: 'a', status: 'retired-still-right' }),
+      makePiece({
+        slug: 'b',
+        status: 'changed-my-mind',
+        supersedes: 'a',
+        originalPosition: 'o',
+        newPosition: 'n',
+      }),
+    ];
+    expect(() => validateChangedMyMindReferences(pieces)).not.toThrow();
+  });
+  it('passes when supersedes points at a retired-evolved piece', () => {
+    const pieces = [
+      makePiece({ slug: 'a', status: 'retired-evolved' }),
+      makePiece({
+        slug: 'b',
+        status: 'changed-my-mind',
+        supersedes: 'a',
+        originalPosition: 'o',
+        newPosition: 'n',
+      }),
+    ];
+    expect(() => validateChangedMyMindReferences(pieces)).not.toThrow();
+  });
+  it('throws when supersedes points at a non-existent slug', () => {
+    const pieces = [
+      makePiece({
+        slug: 'b',
+        status: 'changed-my-mind',
+        supersedes: 'missing',
+        originalPosition: 'o',
+        newPosition: 'n',
+      }),
+    ];
+    expect(() => validateChangedMyMindReferences(pieces)).toThrow(/missing/);
+  });
+  it('throws when supersedes points at an in-rotation piece', () => {
+    const pieces = [
+      makePiece({ slug: 'a', status: 'in-rotation' }),
+      makePiece({
+        slug: 'b',
+        status: 'changed-my-mind',
+        supersedes: 'a',
+        originalPosition: 'o',
+        newPosition: 'n',
+      }),
+    ];
+    expect(() => validateChangedMyMindReferences(pieces)).toThrow(/in-rotation/);
   });
 });

@@ -21,7 +21,7 @@ async function writeFw(
   status: string,
   published: string,
 ) {
-  const front = {
+  const front: Record<string, unknown> = {
     id,
     slug,
     title: slug,
@@ -32,6 +32,12 @@ async function writeFw(
     pushback: { count: 0 },
     excerpt: 'ex',
   };
+  // Discriminated union requires these when status === 'changed-my-mind'.
+  if (status === 'changed-my-mind') {
+    front.supersedes = 'prev';
+    front.originalPosition = 'was';
+    front.newPosition = 'is now';
+  }
   await fs.writeFile(
     path.join(tmp, 'fieldwork', name),
     `---\n${Object.entries(front)
