@@ -294,7 +294,7 @@ Semantic tokens (mapped from the raw palette):
 
 - **Fraunces** (variable serif) — body text + headlines. Can go from warm editorial body to super-bold display.
 - **Inter** (variable sans) — UI, nav, labels, metadata strip captions.
-- **IBM Plex Mono** — the FIELDWORK card data strips (monospace for the README/dashboard aesthetic).
+- **JetBrains Mono** — the FIELDWORK card data strips (monospace for the README/dashboard aesthetic). (Locked 22 Apr 2026 after palette-mood-board review — the mood boards used JBM and Maria approved; architecture updated to match intent.)
 
 Loaded via `next/font/google` in root layout — zero layout shift, self-hosted.
 
@@ -544,7 +544,7 @@ Story-level acceptance criteria, test plans, and scope rules get defined in phas
 
 ## Dependencies (architectural)
 
-- **External**: Anthropic API, Vercel Blob, Upstash Redis, Vercel Analytics, Google Fonts (for Fraunces / Inter / Plex Mono via next/font)
+- **External**: Anthropic API, Vercel Blob, Upstash Redis, Vercel Analytics, Google Fonts (for Fraunces / Inter / JetBrains Mono via next/font)
 - **Existing**: Next.js 15, React 19, Tailwind 4, TypeScript 5
 - **New internal patterns**: MDX content pipeline, server-rendered card aesthetic with data strips, streaming chat endpoint
 
