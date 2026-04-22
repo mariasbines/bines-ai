@@ -1,9 +1,9 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Palette A — jewel editorial on cream (locked 22 Apr 2026) */
-  --color-paper: #f0e6d0;
-  --color-paper-2: #faf3de;
+  /* Palette A — jewel editorial on ivory (locked 22 Apr 2026; ground refined cream → ivory after side-by-side review) */
+  --color-paper: #fffff4;
+  --color-paper-2: #fffefa;
   --color-ink: #1a1814;
 
   /* Rotating jewel anchors */

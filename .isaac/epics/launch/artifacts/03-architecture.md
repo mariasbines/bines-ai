@@ -261,17 +261,17 @@ Public endpoint, paid upstream API → must rate-limit.
 
 Defined in `app/globals.css` via Tailwind v4 `@theme`. Editorial-maximalist direction.
 
-### Palette — locked (Palette A "Jewel editorial on cream")
+### Palette — locked (Palette A "Jewel editorial on ivory")
 
-Chosen from the 22 Apr mood board review (`~/Documents/bines-ai-brainstorm/palette-moodboard.html`). Maria's note: *"jewel editorial was my favourite because of the choice of colours that feel ironically more modern."*
+Chosen from the 22 Apr mood board review (`~/Documents/bines-ai-brainstorm/palette-moodboard.html`). Maria's note: *"jewel editorial was my favourite because of the choice of colours that feel ironically more modern."* Ground refined cream → ivory in a follow-up side-by-side comparison (`~/Documents/bines-ai-brainstorm/background-moodboard.html`) — reads as white at a glance, keeps a sliver of editorial warmth, lets the jewels pop slightly harder without going full gallery-modernist.
 
-Warm paper ground + deep jewel anchors. Mid-century editorial lineage (MoMA poster store / Penguin Classics deluxe / Girard / Harper). Per-piece discipline: paper + ink + **one** jewel anchor; rotate across pieces so the site-wide palette is rich but each page is tight.
+Near-white paper ground + deep jewel anchors. Mid-century editorial lineage (MoMA poster store / Penguin Classics deluxe / Girard / Harper). Per-piece discipline: paper + ink + **one** jewel anchor; rotate across pieces so the site-wide palette is rich but each page is tight.
 
 ```css
 @theme {
   /* ground + type */
-  --color-paper: #F0E6D0;     /* warm cream — site background */
-  --color-paper-2: #FAF3DE;   /* lifted surface — card background */
+  --color-paper: #FFFFF4;     /* ivory — site background */
+  --color-paper-2: #FFFEFA;   /* lifted surface — card background */
   --color-ink: #1A1814;       /* deep warm black — body text */
 
   /* rotating jewel anchors (one per piece) */
