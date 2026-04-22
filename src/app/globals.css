@@ -1,26 +1,33 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* Palette A — jewel editorial on cream (locked 22 Apr 2026) */
+  --color-paper: #f0e6d0;
+  --color-paper-2: #faf3de;
+  --color-ink: #1a1814;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Rotating jewel anchors */
+  --color-emerald: #0f7b5a;
+  --color-sapphire: #1b3a8c;
+  --color-ruby: #b0213a;
+  --color-topaz: #c28f2a;
+  --color-amethyst: #3f1e4c;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Semantic tokens (mapped from raw palette) */
+  --color-bg: var(--color-paper);
+  --color-surface: var(--color-paper-2);
+  --color-text: var(--color-ink);
+  --color-destructive: var(--color-ruby);
+
+  /* Typography */
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
 }
