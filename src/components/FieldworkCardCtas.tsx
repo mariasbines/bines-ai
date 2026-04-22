@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { WatchDialog } from './WatchDialog';
+import { PushBackModal } from './PushBackModal';
 import type { Fieldwork } from '@/lib/content/types';
 
 interface FieldworkCardCtasProps {
@@ -10,11 +11,12 @@ interface FieldworkCardCtasProps {
 }
 
 /**
- * Client island inside <FieldworkCard> — manages the [ watch ] modal
- * state. Keeps the card body itself server-rendered.
+ * Client island inside <FieldworkCard> — manages [ watch ] + [ push back ]
+ * modal state. Keeps the card body itself server-rendered.
  */
 export function FieldworkCardCtas({ piece }: FieldworkCardCtasProps) {
-  const [open, setOpen] = useState(false);
+  const [watchOpen, setWatchOpen] = useState(false);
+  const [pushBackOpen, setPushBackOpen] = useState(false);
   const { slug, media, title } = piece.frontmatter;
   const hasTestimonial = !!(media.testimonial && media.posterFrame);
 
@@ -25,7 +27,7 @@ export function FieldworkCardCtas({ piece }: FieldworkCardCtasProps) {
           type="button"
           data-fieldwork-cta="watch"
           disabled={!hasTestimonial}
-          onClick={() => hasTestimonial && setOpen(true)}
+          onClick={() => hasTestimonial && setWatchOpen(true)}
           className="border px-3 py-1.5 border-ink/20 text-ink/40 hover:text-accent hover:border-accent transition-colors motion-reduce:transition-none disabled:opacity-40 disabled:cursor-not-allowed enabled:text-ink/80"
           aria-label={hasTestimonial ? 'Watch video testimonial' : 'Watch — no video for this piece'}
         >
@@ -40,23 +42,29 @@ export function FieldworkCardCtas({ piece }: FieldworkCardCtasProps) {
         <button
           type="button"
           data-fieldwork-cta="push-back"
-          disabled
-          className="border border-ink/20 px-3 py-1.5 text-ink/40 cursor-not-allowed"
-          aria-label="Push back (coming in 001.014)"
+          onClick={() => setPushBackOpen(true)}
+          className="border px-3 py-1.5 border-ink/20 text-ink/80 hover:text-accent hover:border-accent transition-colors motion-reduce:transition-none"
+          aria-label="Push back on this piece"
         >
           [ push back ]
         </button>
       </div>
       {hasTestimonial ? (
         <WatchDialog
-          open={open}
-          onClose={() => setOpen(false)}
+          open={watchOpen}
+          onClose={() => setWatchOpen(false)}
           src={media.testimonial!}
           poster={media.posterFrame!}
           captions={media.testimonialCaptions}
           title={`Watch: ${title}`}
         />
       ) : null}
+      <PushBackModal
+        open={pushBackOpen}
+        onClose={() => setPushBackOpen(false)}
+        slug={slug}
+        title={title}
+      />
     </>
   );
 }

@@ -3,13 +3,14 @@ import { accentFor, accentVar } from '@/lib/design/accent';
 import { Metadata } from './Metadata';
 import { MdxBody } from './MdxBody';
 import { VideoLoop } from './VideoLoop';
+import { FieldworkArticleFooter } from './FieldworkArticleFooter';
 
 interface FieldworkArticleProps {
   piece: Fieldwork;
 }
 
 export function FieldworkArticle({ piece }: FieldworkArticleProps) {
-  const { id, title, status, media } = piece.frontmatter;
+  const { id, slug, title, status, media } = piece.frontmatter;
   const accent = accentFor(piece);
   const idPadded = id.toString().padStart(2, '0');
   const isRetired = status === 'retired-still-right' || status === 'retired-evolved';
@@ -66,7 +67,7 @@ export function FieldworkArticle({ piece }: FieldworkArticleProps) {
         <MdxBody source={piece.body} />
       </div>
 
-      {/* Placeholder slot for change-my-mind footer (001.010). */}
+      <FieldworkArticleFooter slug={slug} title={title} />
     </article>
   );
 }

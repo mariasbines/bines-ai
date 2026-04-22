@@ -47,7 +47,8 @@ describe('<FieldworkCard>', () => {
       'href',
       '/fieldwork/01-best-thing',
     );
-    expect(screen.getByRole('button', { name: /push back/i })).toBeDisabled();
+    // [ push back ] wired in 001.014 — now enabled and opens PushBackModal
+    expect(screen.getByRole('button', { name: /push back/i })).not.toBeDisabled();
   });
   it('sets --color-accent on the article root', () => {
     const { container } = render(<FieldworkCard piece={piece} />);
