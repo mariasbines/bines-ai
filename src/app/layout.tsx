@@ -25,15 +25,31 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+const SITE_URL = 'https://bines.ai';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'bines.ai',
     template: '%s · bines.ai',
   },
   description:
-    "Kentucky-raised, London-based, accidentally Canadian-sounding. Fieldwork and postcards from someone who actually uses the AI she writes about.",
+    'Kentucky-raised, London-based, accidentally Canadian-sounding. Fieldwork and postcards from someone who actually uses the AI she writes about.',
   icons: {
     icon: [{ url: '/stamp.svg', type: 'image/svg+xml' }],
+  },
+  alternates: {
+    types: {
+      'application/rss+xml': `${SITE_URL}/rss.xml`,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: 'bines.ai',
+  },
+  twitter: {
+    card: 'summary_large_image',
   },
 };
 

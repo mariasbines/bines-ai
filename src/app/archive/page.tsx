@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import type { Fieldwork } from '@/lib/content/types';
 import { getFieldworkGroupedByStatus } from '@/lib/content/fieldwork';
 import { ArchiveSection } from '@/components/ArchiveSection';
+
+export const metadata: Metadata = {
+  title: 'Archive',
+  description: 'Retired fieldwork organised by status: still right, evolved, changed my mind.',
+};
 
 function sortForArchive(pieces: Fieldwork[]): Fieldwork[] {
   return [...pieces].sort((a, b) => {

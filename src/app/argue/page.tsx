@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import { ChatInterface } from '@/components/ChatInterface';
+
+export const metadata: Metadata = {
+  title: 'Argue',
+  description:
+    "Argue with an AI trained on Maria's voice. Push back, ask hard questions, try to change its mind.",
+};
 
 export default function ArguePage() {
   return (
