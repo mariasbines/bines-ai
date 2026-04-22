@@ -12,8 +12,12 @@ export default defineConfig({
     css: false,
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // Neutralise `server-only` in tests — it throws when imported outside
+      // Next.js's bundler context. This is the canonical Next.js + Vitest
+      // interop pattern (see vercel/next.js discussions #50833).
+      { find: /^server-only$/, replacement: path.resolve(__dirname, './vitest.stubs/server-only.ts') },
+    ],
   },
 });
