@@ -31,3 +31,16 @@ body {
   font-family: var(--font-serif);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Per-piece accent consumption — the article root sets `--color-accent`.
+   Tailwind v4 automatically generates hover:/focus:/etc variants for any
+   @utility, so `hover:bg-accent` works without extra definitions. */
+@utility text-accent {
+  color: var(--color-accent);
+}
+@utility bg-accent {
+  background-color: var(--color-accent);
+}
+@utility border-accent {
+  border-color: var(--color-accent);
+}
