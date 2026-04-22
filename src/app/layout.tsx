@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Fraunces, Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { PageShell } from '@/components/PageShell';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -44,7 +45,9 @@ export default function RootLayout({
       lang="en"
       className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <PageShell>{children}</PageShell>
+      </body>
     </html>
   );
 }
