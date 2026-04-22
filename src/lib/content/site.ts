@@ -24,6 +24,7 @@ export const NAV: readonly NavItem[] = [
   { href: '/postcards', label: 'Postcards' },
   { href: '/archive', label: 'Archive' },
   { href: '/now', label: 'Now' },
+  { href: '/taste', label: 'Taste' },
   { href: '/argue', label: 'Argue' },
 ] as const;
 
