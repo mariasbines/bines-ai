@@ -43,3 +43,5 @@ next-env.d.ts
 # ISAAC — local machine-specific paths
 .isaac/.plugin-root
 .isaac/epics/.current-epic
+.isaac/.telemetry.jsonl
+.isaac/epics/*/progress.yaml
