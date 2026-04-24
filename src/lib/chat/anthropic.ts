@@ -25,3 +25,19 @@ export const DEFAULT_MODEL = process.env.CHAT_MODEL ?? 'claude-sonnet-4-6';
 
 /** Per-response token cap (SEC-002 cost amplification mitigation). */
 export const MAX_TOKENS = 1024;
+
+/**
+ * Haiku pre-flight classifier model (story 002.004).
+ *
+ * Env-tunable. Defaults to the current Haiku generation. Used by
+ * src/lib/argue-filter/haiku.ts to classify incoming conversations as
+ * off-brand / harm / clean before the Sonnet stream fires.
+ */
+export const FILTER_MODEL = process.env.FILTER_MODEL ?? 'claude-haiku-4-5';
+
+/**
+ * Max tokens for the classifier response. The verdict is a small JSON
+ * object; 256 gives comfortable headroom without wasting spend
+ * (ARGUE-OPS-002 cost mitigation).
+ */
+export const FILTER_MAX_TOKENS = 256;
