@@ -1,20 +1,12 @@
 import 'server-only';
 import { list, put, del } from '@vercel/blob';
 import { ARGUE_LOG_ENTRY, type ArgueLogEntry } from './schema';
+import { isValidDayKey, dayKeyUtc } from './day';
 
 const PREFIX = 'argue-log/';
-const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-function isValidDayKey(s: string): boolean {
-  return DAY_KEY_RE.test(s);
-}
 
 function filenameFor(day: string): string {
   return `${PREFIX}${day}.jsonl`;
-}
-
-function dayKeyUtc(d: Date = new Date()): string {
-  return d.toISOString().slice(0, 10);
 }
 
 function requireToken(): string {
