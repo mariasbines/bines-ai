@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    { "path": "/api/argue-log/cleanup", "schedule": "30 3 * * *" }
+  ]
+}
