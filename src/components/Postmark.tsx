@@ -154,10 +154,10 @@ export function Postmark({
       {shapeFor(number)}
       <text
         fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        fontWeight={500}
-        fontSize={14}
+        fontWeight={600}
+        fontSize={20}
         fill="currentColor"
-        letterSpacing={1.6}
+        letterSpacing={1.4}
       >
         <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">
           {dateLabel}

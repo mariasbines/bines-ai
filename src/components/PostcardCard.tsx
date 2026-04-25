@@ -35,9 +35,9 @@ export function PostcardCard({ postcard, linkTitle = true }: PostcardCardProps) 
       <Postmark
         number={number}
         publishedISO={published}
-        className="absolute top-3 right-4 sm:top-3 sm:right-5 text-accent opacity-80"
+        className="float-right ml-5 mb-2 -mt-1 text-accent opacity-80"
       />
-      <header className="mb-4 pr-20 sm:pr-24">
+      <header className="mb-4">
         {linkTitle ? (
           <Link
             href={`/postcards/${numPadded}`}
@@ -54,7 +54,7 @@ export function PostcardCard({ postcard, linkTitle = true }: PostcardCardProps) 
         <MdxBody source={postcard.body} />
       </div>
 
-      <p className="mt-5 font-mono text-xs text-ink/60 italic">
+      <p className="clear-both mt-5 font-mono text-xs text-ink/60 italic">
         maria · {fmtDateShort(published)}
       </p>
     </article>
