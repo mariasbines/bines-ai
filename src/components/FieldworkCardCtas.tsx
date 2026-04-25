@@ -23,16 +23,17 @@ export function FieldworkCardCtas({ piece }: FieldworkCardCtasProps) {
   return (
     <>
       <div className="font-mono text-xs uppercase tracking-[0.14em] flex flex-wrap gap-3">
-        <button
-          type="button"
-          data-fieldwork-cta="watch"
-          disabled={!hasTestimonial}
-          onClick={() => hasTestimonial && setWatchOpen(true)}
-          className="border px-3 py-1.5 border-ink/20 text-ink/40 hover:text-accent hover:border-accent transition-colors motion-reduce:transition-none disabled:opacity-40 disabled:cursor-not-allowed enabled:text-ink/80"
-          aria-label={hasTestimonial ? 'Watch video testimonial' : 'Watch — no video for this piece'}
-        >
-          [ watch ]
-        </button>
+        {hasTestimonial ? (
+          <button
+            type="button"
+            data-fieldwork-cta="watch"
+            onClick={() => setWatchOpen(true)}
+            className="border px-3 py-1.5 border-ink/20 text-ink/80 hover:text-accent hover:border-accent transition-colors motion-reduce:transition-none"
+            aria-label="Watch video testimonial"
+          >
+            [ watch ]
+          </button>
+        ) : null}
         <Link
           href={`/fieldwork/${slug}`}
           className="border border-accent px-3 py-1.5 text-accent hover:bg-accent hover:text-paper transition-colors motion-reduce:transition-none"

@@ -34,12 +34,12 @@ const basePiece: Fieldwork = {
 };
 
 describe('<FieldworkCardCtas>', () => {
-  it('disables [ watch ] when no testimonial', () => {
+  it('omits [ watch ] entirely when no testimonial', () => {
     render(<FieldworkCardCtas piece={basePiece} />);
-    expect(screen.getByRole('button', { name: /watch/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /watch/i })).not.toBeInTheDocument();
   });
 
-  it('enables [ watch ] when testimonial + poster are set', () => {
+  it('renders [ watch ] when testimonial + poster are set', () => {
     const withVideo: Fieldwork = {
       ...basePiece,
       frontmatter: {
@@ -52,7 +52,7 @@ describe('<FieldworkCardCtas>', () => {
       } as Fieldwork['frontmatter'],
     };
     render(<FieldworkCardCtas piece={withVideo} />);
-    expect(screen.getByRole('button', { name: /watch/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /watch/i })).toBeInTheDocument();
   });
 
   it('opens WatchDialog on click when testimonial present', () => {

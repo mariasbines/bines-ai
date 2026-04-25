@@ -39,15 +39,13 @@ describe('<FieldworkCard>', () => {
     const link = screen.getByRole('link', { name: /The best thing/ });
     expect(link).toHaveAttribute('href', '/fieldwork/01-best-thing');
   });
-  it('renders all three CTA elements', () => {
+  it('renders [ read ] + [ push back ] but omits [ watch ] when no testimonial', () => {
     render(<FieldworkCard piece={piece} />);
-    expect(screen.getByRole('button', { name: /watch/i })).toBeDisabled();
-    // [ read ] is a Link, not a button
+    expect(screen.queryByRole('button', { name: /watch/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /\[ read \]/ })).toHaveAttribute(
       'href',
       '/fieldwork/01-best-thing',
     );
-    // [ push back ] wired in 001.014 — now enabled and opens PushBackModal
     expect(screen.getByRole('button', { name: /push back/i })).not.toBeDisabled();
   });
   it('sets --color-accent on the article root', () => {
