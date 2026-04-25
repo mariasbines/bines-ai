@@ -35,7 +35,7 @@ export function PostcardCard({ postcard, linkTitle = true }: PostcardCardProps) 
       <Postmark
         number={number}
         publishedISO={published}
-        className="absolute top-4 right-4 sm:top-5 sm:right-5 text-accent opacity-80"
+        className="absolute top-3 right-4 sm:top-3 sm:right-5 text-accent opacity-80"
       />
       <header className="mb-4 pr-20 sm:pr-24">
         {linkTitle ? (

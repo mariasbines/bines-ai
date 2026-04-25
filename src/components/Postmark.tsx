@@ -140,15 +140,15 @@ export function Postmark({
   return (
     <svg
       width={size}
-      height={size}
-      viewBox="0 0 200 220"
+      height={size * 1.05}
+      viewBox="0 0 200 210"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label={`postmark ${dateLabel}`}
       className={className}
     >
       <defs>
-        <path id={arcId} d="M 32 178 A 90 60 0 0 0 168 178" />
+        <path id={arcId} d="M 35 178 A 80 18 0 0 0 165 178" />
       </defs>
       <circle cx={100} cy={100} r={70} fill="none" stroke="currentColor" strokeWidth={2} />
       {shapeFor(number)}
