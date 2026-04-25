@@ -14,7 +14,7 @@
  */
 export const FIELDWORK_01_BODY = `My brother-in-law is allergic to shellfish and hates curries, but he'll happily eat prawn crackers at a Chinese restaurant because — as he'll tell you if you ask — they're not really prawns. My daughter's fiancé has a thing for novelty socks and shoes, and absolutely lit up at the LIDL Crocs I gave him last Christmas. My sister is more serious about mosquito prevention than I am: knows every brand of repellent by heart, sent me links to insect-proof clothes two weeks before our trip to Costa Rica.
 
-I didn't remember any of those details until they were surfaced only recently, like reading an old diary.
+I'd forgotten every one of those details. They came back this year — the way an old diary surprises you.
 
 I would have *said* I remembered most of it — given you most of the shape. The shellfish, the novelty thing, the mosquitos. But *"most of the shape"* isn't useful when what matters is the prawn crackers, the LIDL detail, the mosquito-repelling clothing brand. Close doesn't count when the whole point is specificity.
 
