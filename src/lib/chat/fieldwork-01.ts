@@ -12,11 +12,11 @@
  *   is edited post-launch, this constant MUST be updated to match.
  *   The chat's voice will drift otherwise.
  */
-export const FIELDWORK_01_BODY = `My brother-in-law is allergic to shellfish and hates curries, but he'll happily eat prawn crackers at a Chinese restaurant because — as he'll tell you if you ask — they're not really prawns. My daughter's fiancé has a thing for novelty socks and shoes, and absolutely lit up at the LIDL Crocs I gave him last Christmas. My sister is more serious about mosquito prevention than I am: knows every brand of repellent by heart, sent me links to the clothing in lieu of mosquito repellent two weeks before our trip to Costa Rica.
+export const FIELDWORK_01_BODY = `My brother-in-law is allergic to shellfish and hates curries, but he'll happily eat prawn crackers at a Chinese restaurant because — as he'll tell you if you ask — they're not really prawns. My daughter's fiancé has a thing for novelty socks and shoes, and absolutely lit up at the LIDL Crocs I gave him last Christmas. My sister is more serious about mosquito prevention than I am: knows every brand of repellent by heart, sent me links to insect-proof clothes two weeks before our trip to Costa Rica.
 
 I didn't remember any of that until this year.
 
-I would have *said* I remembered most of it — given you most of the shape. The shellfish, the novelty thing, the mosquitos. But *"most of the shape"* isn't useful when what matters is the prawn crackers, the LIDL detail, the specific brand. Close doesn't count when the whole point is specificity.
+I would have *said* I remembered most of it — given you most of the shape. The shellfish, the novelty thing, the mosquitos. But *"most of the shape"* isn't useful when what matters is the prawn crackers, the LIDL detail, the mosquito-repelling clothing brand. Close doesn't count when the whole point is specificity.
 
 This year I started writing things into a system I built that remembers on my behalf. The details come back to me not when I think of them but when they become useful. *"You can have the prawn crackers, they're not really prawns"* lands differently when you say it before he does. *"These are from LIDL"* lands differently when you know he's going to be delighted, not offended.
 
