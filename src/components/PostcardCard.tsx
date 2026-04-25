@@ -4,6 +4,7 @@ import type { Postcard } from '@/lib/content/types';
 import { accentFor, accentVar } from '@/lib/design/accent';
 import { padNumber } from '@/lib/utils/number';
 import { MdxBody } from './MdxBody';
+import { Postmark } from './Postmark';
 
 interface PostcardCardProps {
   postcard: Postcard;
@@ -28,10 +29,15 @@ export function PostcardCard({ postcard, linkTitle = true }: PostcardCardProps) 
 
   return (
     <article
-      className="bg-paper-2 border border-ink/15 rounded-sm px-6 py-7 sm:px-8 sm:py-8 mb-6 shadow-[0_1px_0_rgba(26,24,20,0.04)] border-l-[4px] border-l-accent motion-safe:transition-all motion-safe:duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      className="relative bg-paper-2 border border-ink/15 rounded-sm px-6 py-7 sm:px-8 sm:py-8 mb-6 shadow-[0_1px_0_rgba(26,24,20,0.04)] border-l-[4px] border-l-accent motion-safe:transition-all motion-safe:duration-200 hover:-translate-y-0.5 hover:shadow-md"
       style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
     >
-      <header className="mb-4">
+      <Postmark
+        number={number}
+        publishedISO={published}
+        className="absolute top-4 right-4 sm:top-5 sm:right-5 text-accent opacity-80"
+      />
+      <header className="mb-4 pr-20 sm:pr-24">
         {linkTitle ? (
           <Link
             href={`/postcards/${numPadded}`}
