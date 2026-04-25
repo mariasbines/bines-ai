@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 interface CurrentlyStripProps {
   currently: string;
   stats: {
@@ -17,9 +19,14 @@ const FORMATTER = new Intl.DateTimeFormat('en-GB', {
   year: 'numeric',
 });
 
+const linkClass =
+  'underline-offset-2 decoration-transparent hover:decoration-current decoration-1 underline transition-colors hover:text-ink/90 motion-reduce:transition-none';
+
 /**
  * The "currently →" data strip. Two lines: the current thought + the site
- * stats. Prop-driven in this story; story 001.008 wires props to /now MDX.
+ * stats. Each count is a quiet link to its index — no shouty button styling,
+ * just an underline-on-hover that rewards the curious without pretending to
+ * be a CTA.
  */
 export function CurrentlyStrip({ currently, stats, updated, className }: CurrentlyStripProps) {
   return (
@@ -33,7 +40,21 @@ export function CurrentlyStrip({ currently, stats, updated, className }: Current
         <span>{currently}</span>
       </div>
       <div className="text-ink/60">
-        {stats.fieldwork} fieldwork · {stats.postcards} postcards · {stats.changedMyMind} changed my mind · updated {FORMATTER.format(updated)}
+        {stats.fieldwork}{' '}
+        <Link href="/fieldwork" className={linkClass}>
+          fieldwork
+        </Link>
+        {' · '}
+        {stats.postcards}{' '}
+        <Link href="/postcards" className={linkClass}>
+          postcards
+        </Link>
+        {' · '}
+        {stats.changedMyMind}{' '}
+        <Link href="/changed-my-mind" className={linkClass}>
+          changed my mind
+        </Link>
+        {' · updated '}{FORMATTER.format(updated)}
       </div>
     </div>
   );

@@ -17,10 +17,23 @@ describe('<CurrentlyStrip>', () => {
     render(<CurrentlyStrip {...props} />);
     expect(screen.getByText('test thought')).toBeInTheDocument();
   });
-  it('renders the formatted stats line', () => {
+
+  it('renders each count next to its label', () => {
     render(<CurrentlyStrip {...props} />);
-    expect(
-      screen.getByText(/4 fieldwork · 12 postcards · 1 changed my mind · updated 22 Apr 2026/),
-    ).toBeInTheDocument();
+    const stripText = screen.getByLabelText('Current state of the site').textContent ?? '';
+    expect(stripText).toMatch(/4\s+fieldwork/);
+    expect(stripText).toMatch(/12\s+postcards/);
+    expect(stripText).toMatch(/1\s+changed my mind/);
+    expect(stripText).toMatch(/updated 22 Apr 2026/);
+  });
+
+  it('links each count label to its index page', () => {
+    render(<CurrentlyStrip {...props} />);
+    expect(screen.getByRole('link', { name: 'fieldwork' })).toHaveAttribute('href', '/fieldwork');
+    expect(screen.getByRole('link', { name: 'postcards' })).toHaveAttribute('href', '/postcards');
+    expect(screen.getByRole('link', { name: 'changed my mind' })).toHaveAttribute(
+      'href',
+      '/changed-my-mind',
+    );
   });
 });
