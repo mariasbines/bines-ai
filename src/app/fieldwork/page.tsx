@@ -10,7 +10,7 @@ export default async function FieldworkIndex() {
       <header className="mb-8">
         <h1 className="font-serif font-black text-4xl sm:text-5xl tracking-tight">Fieldwork</h1>
         <p className="mt-3 font-serif text-base text-ink/70 italic">
-          Long-form arguments, four to six in rotation at a time. Earlier pieces live in the{' '}
+          What I&apos;m noticing while I build AI for a living. Some of it&apos;s about work. A lot of it isn&apos;t. Earlier pieces live in the{' '}
           <Link
             href="/archive"
             className="text-ruby underline decoration-ruby/40 underline-offset-4 hover:decoration-ruby motion-reduce:transition-none"

@@ -9,7 +9,7 @@ export default async function PostcardsIndex() {
       <header className="mb-8">
         <h1 className="font-serif font-black text-4xl sm:text-5xl tracking-tight">Postcards</h1>
         <p className="mt-3 font-serif text-base text-ink/70 italic">
-          Numbered observations. Short. One per card, most recent first.
+          Short observations. Numbered. The bits that didn&apos;t earn a full Fieldwork — and the bits I wrote when I should have been doing something else.
         </p>
       </header>
 
