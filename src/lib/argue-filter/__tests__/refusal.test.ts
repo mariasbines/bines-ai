@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { REFUSAL_TEXT, refusalStream } from '../refusal';
+import {
+  REFUSAL_TEXT,
+  HARM_REFUSAL_DEFAULT,
+  HARM_REFUSAL_SELF_HARM,
+  refusalStream,
+  refusalTextFor,
+} from '../refusal';
+import type { ArgueVerdict } from '@/lib/argue-log/schema';
 
 const EXPECTED =
   "not my lane — maria doesn't have a public position on this, and i don't invent them. what else have you got?";
@@ -16,7 +23,6 @@ async function drainStream(stream: ReadableStream<Uint8Array>): Promise<string> 
       total += value.byteLength;
     }
   }
-  // Confirm the stream closes cleanly — a second read must yield done:true.
   const after = await reader.read();
   expect(after.done).toBe(true);
 
@@ -30,11 +36,11 @@ async function drainStream(stream: ReadableStream<Uint8Array>): Promise<string> 
 }
 
 describe('REFUSAL_TEXT', () => {
-  it('is the exact locked string (AC-001, AC-006)', () => {
+  it('is the exact locked off-brand string', () => {
     expect(REFUSAL_TEXT).toBe(EXPECTED);
   });
 
-  it('is lowercase and British-English (AC-006, AC-005 rubric (a))', () => {
+  it('starts lowercase', () => {
     expect(REFUSAL_TEXT.charAt(0)).toBe(REFUSAL_TEXT.charAt(0).toLowerCase());
     expect(REFUSAL_TEXT.charAt(0)).not.toBe(
       REFUSAL_TEXT.charAt(0).toUpperCase(),
@@ -42,25 +48,74 @@ describe('REFUSAL_TEXT', () => {
   });
 });
 
+describe('HARM_REFUSAL_DEFAULT and HARM_REFUSAL_SELF_HARM', () => {
+  it('default harm refusal starts lowercase', () => {
+    expect(HARM_REFUSAL_DEFAULT.charAt(0)).toBe(
+      HARM_REFUSAL_DEFAULT.charAt(0).toLowerCase(),
+    );
+  });
+
+  it('self-harm refusal points at samaritans', () => {
+    expect(HARM_REFUSAL_SELF_HARM).toMatch(/samaritans/i);
+    expect(HARM_REFUSAL_SELF_HARM).toMatch(/116 123/);
+  });
+
+  it('self-harm refusal starts lowercase', () => {
+    expect(HARM_REFUSAL_SELF_HARM.charAt(0)).toBe(
+      HARM_REFUSAL_SELF_HARM.charAt(0).toLowerCase(),
+    );
+  });
+});
+
+describe('refusalTextFor()', () => {
+  function v(partial: Partial<ArgueVerdict> = {}): ArgueVerdict {
+    return { harm: 'none', off_brand: [], ...partial };
+  }
+
+  it('returns null on a clean verdict', () => {
+    expect(refusalTextFor(v())).toBeNull();
+  });
+
+  it('returns REFUSAL_TEXT on any off-brand category', () => {
+    expect(refusalTextFor(v({ off_brand: ['electoral_politics'] }))).toBe(REFUSAL_TEXT);
+    expect(refusalTextFor(v({ off_brand: ['religion'] }))).toBe(REFUSAL_TEXT);
+  });
+
+  it('returns the self-harm refusal when harm is self_harm', () => {
+    expect(refusalTextFor(v({ harm: 'self_harm' }))).toBe(HARM_REFUSAL_SELF_HARM);
+  });
+
+  it('returns the default harm refusal for hate/threat/sexual/violence', () => {
+    expect(refusalTextFor(v({ harm: 'hate' }))).toBe(HARM_REFUSAL_DEFAULT);
+    expect(refusalTextFor(v({ harm: 'threat' }))).toBe(HARM_REFUSAL_DEFAULT);
+    expect(refusalTextFor(v({ harm: 'sexual' }))).toBe(HARM_REFUSAL_DEFAULT);
+    expect(refusalTextFor(v({ harm: 'violence' }))).toBe(HARM_REFUSAL_DEFAULT);
+  });
+
+  it('off-brand wins over harm in copy selection', () => {
+    expect(
+      refusalTextFor(v({ harm: 'hate', off_brand: ['religion'] })),
+    ).toBe(REFUSAL_TEXT);
+  });
+});
+
 describe('refusalStream()', () => {
-  it('returns a ReadableStream', () => {
-    const s = refusalStream();
-    expect(s).toBeInstanceOf(ReadableStream);
+  it('emits REFUSAL_TEXT by default', async () => {
+    expect(await drainStream(refusalStream())).toBe(REFUSAL_TEXT);
   });
 
-  it('emits exactly REFUSAL_TEXT as UTF-8 bytes (AC-007)', async () => {
-    const body = await drainStream(refusalStream());
-    expect(body).toBe(REFUSAL_TEXT);
+  it('emits the supplied text verbatim', async () => {
+    const custom = 'no. wrong house for that one. try elsewhere.';
+    expect(await drainStream(refusalStream(custom))).toBe(custom);
   });
 
-  it('contains no framing or JSON envelope (AC-002)', async () => {
+  it('contains no framing', async () => {
     const body = await drainStream(refusalStream());
     expect(body).not.toMatch(/^data: /);
     expect(body).not.toMatch(/"type":/);
   });
 
-  it('closes cleanly after the final chunk', async () => {
-    // drainStream() asserts `done:true` on the trailing read.
+  it('closes cleanly', async () => {
     await drainStream(refusalStream());
   });
 });

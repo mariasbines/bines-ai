@@ -5,7 +5,7 @@ import { z } from 'zod';
  * Extracted from route.ts for testability.
  */
 
-export const MAX_MESSAGE_CHARS = 4000; // AC-004
+export const MAX_MESSAGE_CHARS = 800; // AC-004 (tightened post-launch — Hemingway sizing, blocks essay-paste)
 export const MAX_TURNS = 10; // AC-005
 
 export const CHAT_REQUEST = z.object({

@@ -23,8 +23,12 @@ export function getAnthropicClient(): Anthropic {
  */
 export const DEFAULT_MODEL = process.env.CHAT_MODEL ?? 'claude-sonnet-4-6';
 
-/** Per-response token cap (SEC-002 cost amplification mitigation). */
-export const MAX_TOKENS = 1024;
+/**
+ * Per-response token cap. ~250 words. The system prompt aims 40-120 words;
+ * 350 is the hard ceiling. Tightened post-launch — Hemingway voice, plus
+ * SEC-002 cost amplification mitigation.
+ */
+export const MAX_TOKENS = 350;
 
 /**
  * Haiku pre-flight classifier model (story 002.004).

@@ -5,7 +5,8 @@ import { detectAgentBehaviour } from '@/lib/chat/agent-guard';
 import { getChatRatelimit, getChatDailyRatelimit } from '@/lib/chat/rate-limit';
 import { validateRequest } from '@/lib/chat/validate';
 import { classifyConversation } from '@/lib/argue-filter/haiku';
-import { refusalStream } from '@/lib/argue-filter/refusal';
+import { refusalStream, refusalTextFor } from '@/lib/argue-filter/refusal';
+import { matchEasterEgg, easterEggStream } from '@/lib/argue-filter/easter-egg';
 import { hashIp } from '@/lib/argue-log/hash';
 import { appendArgueLog } from '@/lib/argue-log/storage';
 import type { ArgueLogEntry } from '@/lib/argue-log/schema';
@@ -109,16 +110,48 @@ export async function POST(req: Request) {
     return errorResponse(500, 'chat is temporarily unavailable', 'upstream');
   }
   const ipHashPromise = hashIp(ip, salt);
-
-  // 7. Haiku pre-flight classifier (fail-open — see argue-filter/haiku.ts).
   const t0 = Date.now();
+
+  // 7. Easter-egg pre-filter. Runs before the classifier — bypasses Haiku and
+  //    Sonnet entirely on a regex match against the latest user turn.
+  const egg = matchEasterEgg(messages);
+  if (egg) {
+    const ipHash = await ipHashPromise;
+    const eggEntry: ArgueLogEntry = {
+      schema_version: 1,
+      timestamp: new Date().toISOString(),
+      ip_hash: ipHash,
+      salt_version: 'current',
+      turns: messages,
+      guard_signals: guard.signals,
+      verdict: { harm: 'none', off_brand: [], reasoning: `easter_egg:${egg.id}` },
+      refused: true,
+      model: '',
+      latency_ms: { pre_flight: 0, stream: null },
+    };
+    after(async () => {
+      try {
+        await appendArgueLog(eggEntry);
+      } catch (err) {
+        console.error(
+          '[chat] log-append failed (easter-egg):',
+          err instanceof Error ? err.name : 'unknown',
+        );
+      }
+    });
+    return new Response(easterEggStream(egg.response), { headers: STREAM_HEADERS });
+  }
+
+  // 8. Haiku pre-flight classifier (fail-open — see argue-filter/haiku.ts).
   const verdict = await classifyConversation(messages);
   const preFlightMs = Date.now() - t0;
 
   const ipHash = await ipHashPromise;
 
-  // 8. Off-brand verdict → refusal path.
-  if (verdict.off_brand.length > 0) {
+  // 9. Off-brand or harm verdict → refusal path. Off-brand wins over harm in
+  //    the copy selection (refusalTextFor handles the precedence).
+  const refusalCopy = refusalTextFor(verdict);
+  if (refusalCopy) {
     const refusalEntry: ArgueLogEntry = {
       schema_version: 1,
       timestamp: new Date().toISOString(),
@@ -142,12 +175,12 @@ export async function POST(req: Request) {
       }
     });
 
-    return new Response(refusalStream(), { headers: STREAM_HEADERS });
+    return new Response(refusalStream(refusalCopy), { headers: STREAM_HEADERS });
   }
 
-  // 9. On-brand → Sonnet stream. Iterate the SDK's typed events directly,
-  //    extract text_delta payloads, push raw UTF-8 bytes to the client and
-  //    accumulate server-side for the argue-log.
+  // 10. On-brand → Sonnet stream. Iterate the SDK's typed events directly,
+  //     extract text_delta payloads, push raw UTF-8 bytes to the client and
+  //     accumulate server-side for the argue-log.
   let stream;
   try {
     stream = client.messages.stream({

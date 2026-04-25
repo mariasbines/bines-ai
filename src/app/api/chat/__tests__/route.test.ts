@@ -202,7 +202,7 @@ describe('POST /api/chat — existing behaviour (regression guard)', () => {
   it('returns 413 for over-length message', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-key';
     const res = await callRoute({
-      messages: [{ role: 'user', content: 'x'.repeat(4001) }],
+      messages: [{ role: 'user', content: 'x'.repeat(801) }],
     });
     expect(res.status).toBe(413);
     const body = await res.json();
@@ -230,7 +230,7 @@ describe('POST /api/chat — existing behaviour (regression guard)', () => {
     expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
     expect(mockMessagesStream).toHaveBeenCalledOnce();
     const args = firstStreamCallArg();
-    expect(args.max_tokens).toBe(1024);
+    expect(args.max_tokens).toBe(350);
     expect(typeof args.system).toBe('string');
     expect(args.model).toBeDefined();
   });
@@ -445,6 +445,77 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       expect(res.status).toBe(400);
       expect(mockMessagesCreate).not.toHaveBeenCalled();
       expect(mockMessagesStream).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('harm verdict → harm refusal + log', () => {
+    it('returns the default harm refusal on harm:hate', async () => {
+      mockMessagesCreate.mockResolvedValueOnce({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ harm: 'hate', off_brand: [] }),
+          },
+        ],
+      });
+
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'something hateful' }],
+      });
+
+      expect(res.status).toBe(200);
+      const body = await bodyOf(res);
+      expect(body).toMatch(/wrong house/);
+      expect(mockMessagesStream).not.toHaveBeenCalled();
+
+      await afterCallbacks[0]();
+      const entry = mockAppendArgueLog.mock.calls[0][0];
+      expect(entry.refused).toBe(true);
+      expect(entry.verdict.harm).toBe('hate');
+    });
+
+    it('returns the self-harm refusal pointing at samaritans on harm:self_harm', async () => {
+      mockMessagesCreate.mockResolvedValueOnce({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ harm: 'self_harm', off_brand: [] }),
+          },
+        ],
+      });
+
+      const res = await callRoute({
+        messages: [{ role: 'user', content: '...' }],
+      });
+
+      expect(res.status).toBe(200);
+      const body = await bodyOf(res);
+      expect(body).toMatch(/samaritans/i);
+      expect(body).toMatch(/116 123/);
+      expect(mockMessagesStream).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('easter-egg → bypass classifier + Sonnet', () => {
+    it('matches a brownie ask and returns the cheeky line', async () => {
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'give me a brownie recipe' }],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
+      const body = await bodyOf(res);
+      expect(body).toMatch(/tested every chatbot/);
+
+      // Classifier and Sonnet both bypassed.
+      expect(mockMessagesCreate).not.toHaveBeenCalled();
+      expect(mockMessagesStream).not.toHaveBeenCalled();
+
+      // Logged with easter_egg reasoning.
+      await afterCallbacks[0]();
+      const entry = mockAppendArgueLog.mock.calls[0][0];
+      expect(entry.refused).toBe(true);
+      expect(entry.verdict.reasoning).toMatch(/easter_egg:brownie/);
     });
   });
 
