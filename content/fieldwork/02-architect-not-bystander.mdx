@@ -39,13 +39,17 @@ A SynapseDx routine is shareable. You can hand it to someone else and they can r
 
 Routines, in other words, with gusto.
 
+One of the stranger consequences: we are now fast enough that the bottleneck has moved. We are usually the ones waiting on the customer. The hardest question on any project is no longer *"can we ship this in time?"* — it is *"do you know what you actually want?"* Most don't, until they see what they didn't want.
+
 Yes, it risks putting me out of business. We are essentially building the thing that compresses the work I've spent twenty years getting good at. I am aware. I have made my peace with it.
 
 <PullQuote>I'm the architect. I'm not a bystander.</PullQuote>
 
-The thing I find funny — funny in the way you laugh when you don't quite know what else to do — is that the people who are most critical of this architectural choice are the ones who'd benefit most from it. Lawyers. Compliance officers. Audit teams. They keep asking for traceability and getting handed a PDF.
+The thing I find funny — funny in the way you laugh when you don't quite know what else to do — is that the people most critical of this architectural choice are the ones who'd benefit most from it. Lawyers. Compliance officers. Audit teams. They keep choosing the easy thing.
 
-We built the version that doesn't hand them a PDF.
+Right now the easy thing is documenting *which model the AI is using.* As if that's going to last six months. The model is the most volatile part of the system. The thing that needs governing is what the system is *allowed* to do — and that resists being documented because actually documenting it would mean actually constraining something.
+
+We built the version that constrains.
 
 It is going to take a few quarters before everyone understands why that matters.
 
