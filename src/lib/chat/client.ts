@@ -11,16 +11,11 @@ export interface ChatClientResult {
 }
 
 /**
- * POST to /api/chat and iterate the streaming response.
+ * POST to /api/chat and stream the plain-text response.
  *
- * Anthropic's MessageStream.toReadableStream() emits SSE-style frames:
- *   data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"..."}}
- *
- * We parse each `data:` line as JSON and surface `text_delta` payloads
- * via the onDelta callback. Malformed frames are silently skipped.
- *
- * Depends on the Anthropic SDK's stream protocol — stable since 0.20.x.
- * If the SDK shifts, frame parsing may need adjustment.
+ * The server emits the assistant's text as raw UTF-8 bytes. We decode each
+ * chunk and forward it to onDelta. No framing, no JSON parsing, no SSE
+ * ceremony — the wire format is just text.
  */
 export async function postChat(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
@@ -51,30 +46,18 @@ export async function postChat(
   if (!reader) return { ok: false, errorCode: 'network' };
 
   const decoder = new TextDecoder();
-  let buffer = '';
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let lineEnd: number;
-      while ((lineEnd = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, lineEnd).trim();
-        buffer = buffer.slice(lineEnd + 1);
-        if (!line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6);
-        try {
-          const evt = JSON.parse(jsonStr) as {
-            type?: string;
-            delta?: { type?: string; text?: string };
-          };
-          if (evt?.type === 'content_block_delta' && evt?.delta?.type === 'text_delta') {
-            options.onDelta(evt.delta.text ?? '');
-          }
-        } catch {
-          // Skip malformed frames.
-        }
+      if (done) {
+        const tail = decoder.decode();
+        if (tail.length > 0) options.onDelta(tail);
+        break;
+      }
+      if (value && value.byteLength > 0) {
+        const text = decoder.decode(value, { stream: true });
+        if (text.length > 0) options.onDelta(text);
       }
     }
   } catch (err) {

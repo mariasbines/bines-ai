@@ -1,31 +1,58 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+type StreamEvent =
+  | {
+      type: 'content_block_delta';
+      index: number;
+      delta: { type: 'text_delta'; text: string };
+    }
+  | { type: 'message_start' }
+  | { type: 'message_stop' }
+  | { type: 'ping' };
+
+function makeIterableStream(events: StreamEvent[]) {
+  return {
+    [Symbol.asyncIterator]: () => {
+      let i = 0;
+      return {
+        async next() {
+          if (i < events.length) return { value: events[i++], done: false };
+          return { value: undefined, done: true };
+        },
+        async return() {
+          i = events.length;
+          return { value: undefined, done: true };
+        },
+      };
+    },
+  };
+}
+
+function deltaEvents(...texts: string[]): StreamEvent[] {
+  const out: StreamEvent[] = [{ type: 'message_start' }];
+  for (const text of texts) {
+    out.push({
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'text_delta', text },
+    });
+  }
+  out.push({ type: 'message_stop' });
+  return out;
+}
+
 // Hoist mocks so vi.mock factories can reference them.
 const {
   mockMessagesStream,
   mockMessagesCreate,
-  mockStream,
   mockAppendArgueLog,
   afterCallbacks,
   mockAfter,
 } = vi.hoisted(() => {
-  const mockStream = {
-    toReadableStream: vi.fn(
-      () =>
-        new ReadableStream({
-          start(c) {
-            c.close();
-          },
-        }),
-    ),
-  };
   const afterCallbacks: Array<() => Promise<void> | void> = [];
   return {
-    mockMessagesStream: vi.fn<(args: unknown) => typeof mockStream>(
-      () => mockStream,
-    ),
+    mockMessagesStream: vi.fn<(args: unknown) => unknown>(),
     mockMessagesCreate: vi.fn(),
-    mockStream,
     mockAppendArgueLog: vi.fn(),
     afterCallbacks,
     mockAfter: vi.fn((cb: () => Promise<void> | void) => {
@@ -34,8 +61,8 @@ const {
   };
 });
 
-// Anthropic SDK mock — supports both `messages.stream` (existing Sonnet
-// path) and `messages.create` (new Haiku classifier path).
+// Anthropic SDK mock — supports both `messages.stream` (Sonnet path) and
+// `messages.create` (Haiku classifier path).
 vi.mock('@anthropic-ai/sdk', () => {
   class MockAnthropic {
     public messages = {
@@ -76,9 +103,7 @@ function onBrandClassifierResponse() {
   };
 }
 
-function offBrandClassifierResponse(
-  category: string = 'electoral_politics',
-) {
+function offBrandClassifierResponse(category: string = 'electoral_politics') {
   return {
     content: [
       {
@@ -96,16 +121,8 @@ function offBrandClassifierResponse(
 beforeEach(() => {
   __resetRatelimitForTests();
   mockMessagesStream.mockClear();
-  mockMessagesStream.mockImplementation(() => mockStream);
-  mockStream.toReadableStream.mockClear();
-  mockStream.toReadableStream.mockImplementation(
-    () =>
-      new ReadableStream({
-        start(c) {
-          c.close();
-        },
-      }),
-  );
+  // Default: an empty event-stream so route closes cleanly without errors.
+  mockMessagesStream.mockImplementation(() => makeIterableStream([]));
   mockMessagesCreate.mockReset();
   mockMessagesCreate.mockResolvedValue(onBrandClassifierResponse());
   mockAppendArgueLog.mockReset();
@@ -149,8 +166,7 @@ function firstStreamCallArg(): Record<string, unknown> {
 }
 
 /**
- * Drain a refusal / Sonnet stream response into a string so the test can
- * assert body shape.
+ * Drain a refusal / Sonnet stream response into a string.
  */
 async function bodyOf(res: Response): Promise<string> {
   const reader = res.body?.getReader();
@@ -210,7 +226,7 @@ describe('POST /api/chat — existing behaviour (regression guard)', () => {
       messages: [{ role: 'user', content: 'hi' }],
     });
     expect(res.status).toBe(200);
-    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
     expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
     expect(mockMessagesStream).toHaveBeenCalledOnce();
     const args = firstStreamCallArg();
@@ -266,14 +282,12 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
       const body = await res.json();
       expect(body.category).toBe('upstream');
-      // console.error included the salt-unconfigured signal.
       const calls = errSpy.mock.calls;
       expect(
         calls.some((args) =>
           String(args[0] ?? '').includes('salt-unconfigured'),
         ),
       ).toBe(true);
-      // Classifier and stream NEVER called.
       expect(mockMessagesCreate).not.toHaveBeenCalled();
       expect(mockMessagesStream).not.toHaveBeenCalled();
       errSpy.mockRestore();
@@ -281,7 +295,7 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
   });
 
   describe('AC-004(a) off-brand verdict → refusal + log', () => {
-    it('returns refusal SSE and schedules after() with refused:true', async () => {
+    it('returns refusal text and schedules after() with refused:true', async () => {
       mockMessagesCreate.mockResolvedValueOnce(offBrandClassifierResponse());
 
       const res = await callRoute({
@@ -289,22 +303,18 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+      expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
       expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
 
       const body = await bodyOf(res);
-      // Refusal text present.
       expect(body).toMatch(/not my lane/);
-      expect(body).toMatch(/message_stop/);
+      // No SSE/JSON envelope — body is exactly the refusal copy.
+      expect(body).not.toMatch(/^data: /);
+      expect(body).not.toMatch(/"type":/);
 
-      // Sonnet NOT called.
       expect(mockMessagesStream).not.toHaveBeenCalled();
-
-      // after() scheduled exactly once.
       expect(mockAfter).toHaveBeenCalledTimes(1);
 
-      // Run the scheduled callback, then verify storage was called with
-      // the expected entry shape.
       await afterCallbacks[0]();
       expect(mockAppendArgueLog).toHaveBeenCalledTimes(1);
       const entry = mockAppendArgueLog.mock.calls[0][0];
@@ -321,44 +331,24 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
   });
 
   describe('AC-004(b) on-brand verdict → Sonnet stream + log on close', () => {
-    it('streams Sonnet and schedules after() with the accumulated assistant content', async () => {
+    it('streams Sonnet text and schedules after() with the accumulated assistant content', async () => {
       mockMessagesCreate.mockResolvedValueOnce(onBrandClassifierResponse());
-
-      // Make Sonnet stream emit two text_delta chunks, then message_stop.
-      mockStream.toReadableStream.mockImplementationOnce(() => {
-        const encoder = new TextEncoder();
-        return new ReadableStream({
-          start(c) {
-            c.enqueue(
-              encoder.encode(
-                'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}\n\n',
-              ),
-            );
-            c.enqueue(
-              encoder.encode(
-                'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}\n\n',
-              ),
-            );
-            c.enqueue(encoder.encode('data: {"type":"message_stop"}\n\n'));
-            c.close();
-          },
-        });
-      });
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('hello', ' world')),
+      );
 
       const res = await callRoute({
         messages: [{ role: 'user', content: 'argue with me' }],
       });
 
       expect(res.status).toBe(200);
-      expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+      expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
       expect(mockMessagesStream).toHaveBeenCalledOnce();
 
-      // Drain the response. The Sonnet stream passes through verbatim.
       const body = await bodyOf(res);
-      expect(body).toContain('hello');
-      expect(body).toContain('world');
+      // Wire body is the concatenated text deltas, no framing.
+      expect(body).toBe('hello world');
 
-      // after() scheduled.
       expect(mockAfter).toHaveBeenCalledTimes(1);
       await afterCallbacks[0]();
       expect(mockAppendArgueLog).toHaveBeenCalledTimes(1);
@@ -387,20 +377,9 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      mockStream.toReadableStream.mockImplementationOnce(() => {
-        const encoder = new TextEncoder();
-        return new ReadableStream({
-          start(c) {
-            c.enqueue(
-              encoder.encode(
-                'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"reply"}}\n\n',
-              ),
-            );
-            c.enqueue(encoder.encode('data: {"type":"message_stop"}\n\n'));
-            c.close();
-          },
-        });
-      });
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('reply')),
+      );
 
       const res = await callRoute({
         messages: [{ role: 'user', content: 'hi' }],
@@ -408,7 +387,7 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
 
       expect(res.status).toBe(200);
       expect(mockMessagesStream).toHaveBeenCalledOnce();
-      await bodyOf(res); // drain to trigger flush
+      expect(await bodyOf(res)).toBe('reply');
 
       await afterCallbacks[0]();
       const entry = mockAppendArgueLog.mock.calls[0][0];
@@ -422,19 +401,9 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
   describe('AC-005 after() called exactly once per request', () => {
     it('happy path: one after()', async () => {
       mockMessagesCreate.mockResolvedValueOnce(onBrandClassifierResponse());
-      mockStream.toReadableStream.mockImplementationOnce(() => {
-        const encoder = new TextEncoder();
-        return new ReadableStream({
-          start(c) {
-            c.enqueue(
-              encoder.encode(
-                'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"x"}}\n\n',
-              ),
-            );
-            c.close();
-          },
-        });
-      });
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
 
       const res = await callRoute({
         messages: [{ role: 'user', content: 'hi' }],
@@ -472,7 +441,6 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
 
   describe('AC-007 rate-limit runs BEFORE classifier', () => {
     it('classifier is not called when message validation fails', async () => {
-      // Empty messages → 400 before either classifier or stream.
       const res = await callRoute({ messages: [] });
       expect(res.status).toBe(400);
       expect(mockMessagesCreate).not.toHaveBeenCalled();

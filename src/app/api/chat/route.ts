@@ -5,7 +5,7 @@ import { detectAgentBehaviour } from '@/lib/chat/agent-guard';
 import { getChatRatelimit, getChatDailyRatelimit } from '@/lib/chat/rate-limit';
 import { validateRequest } from '@/lib/chat/validate';
 import { classifyConversation } from '@/lib/argue-filter/haiku';
-import { refusalEventStream } from '@/lib/argue-filter/refusal';
+import { refusalStream } from '@/lib/argue-filter/refusal';
 import { hashIp } from '@/lib/argue-log/hash';
 import { appendArgueLog } from '@/lib/argue-log/storage';
 import type { ArgueLogEntry } from '@/lib/argue-log/schema';
@@ -13,6 +13,10 @@ import type { ArgueLogEntry } from '@/lib/argue-log/schema';
 export const runtime = 'edge';
 
 const GOVERNED_BY_HEADER = { 'X-Governed-By': 'bines.ai' } as const;
+const STREAM_HEADERS = {
+  'Content-Type': 'text/plain; charset=utf-8',
+  ...GOVERNED_BY_HEADER,
+} as const;
 
 function jsonResponse(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -138,22 +142,12 @@ export async function POST(req: Request) {
       }
     });
 
-    return new Response(refusalEventStream(), {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        ...GOVERNED_BY_HEADER,
-      },
-    });
+    return new Response(refusalStream(), { headers: STREAM_HEADERS });
   }
 
-  // 9. On-brand → Sonnet stream, wrapped in a ReadableStream that
-  //    passes through verbatim while server-side-accumulating the
-  //    assistant text for logging on close.
-  //
-  //    Using a ReadableStream (not TransformStream) lets us hook
-  //    `cancel()` for the client-abort case as well as natural close —
-  //    this mitigates the AC-006 concern around partial content on
-  //    abort.
+  // 9. On-brand → Sonnet stream. Iterate the SDK's typed events directly,
+  //    extract text_delta payloads, push raw UTF-8 bytes to the client and
+  //    accumulate server-side for the argue-log.
   let stream;
   try {
     stream = client.messages.stream({
@@ -170,55 +164,13 @@ export async function POST(req: Request) {
     return errorResponse(500, "Claude's having a moment, try again in a sec", 'upstream');
   }
 
-  // Single-fire latch so both natural-close and cancel paths schedule
-  // the log exactly once.
-  let logScheduled = false;
+  const encoder = new TextEncoder();
   const accumulator: string[] = [];
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  function ingestChunk(chunk: Uint8Array): void {
-    buffer += decoder.decode(chunk, { stream: true });
-    let nl: number;
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (!line.startsWith('data: ')) continue;
-      try {
-        const evt = JSON.parse(line.slice(6));
-        if (
-          evt?.type === 'content_block_delta' &&
-          evt?.delta?.type === 'text_delta'
-        ) {
-          accumulator.push(evt.delta.text ?? '');
-        }
-      } catch {
-        // skip malformed frames
-      }
-    }
-  }
+  let logScheduled = false;
 
   function scheduleLog(): void {
     if (logScheduled) return;
     logScheduled = true;
-
-    buffer += decoder.decode();
-    const pending = buffer.trim();
-    if (pending.startsWith('data: ')) {
-      try {
-        const evt = JSON.parse(pending.slice(6));
-        if (
-          evt?.type === 'content_block_delta' &&
-          evt?.delta?.type === 'text_delta'
-        ) {
-          accumulator.push(evt.delta.text ?? '');
-        }
-      } catch {
-        // skip
-      }
-    }
-
-    const assistantContent = accumulator.join('');
     const entry: ArgueLogEntry = {
       schema_version: 1,
       timestamp: new Date().toISOString(),
@@ -226,7 +178,7 @@ export async function POST(req: Request) {
       salt_version: 'current',
       turns: [
         ...messages,
-        { role: 'assistant', content: assistantContent },
+        { role: 'assistant', content: accumulator.join('') },
       ],
       guard_signals: guard.signals,
       verdict,
@@ -249,42 +201,45 @@ export async function POST(req: Request) {
     });
   }
 
-  const upstream = stream.toReadableStream();
-  const upstreamReader = upstream.getReader();
+  const iter = stream[Symbol.asyncIterator]();
 
   const output = new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
-        const { done, value } = await upstreamReader.read();
-        if (done) {
-          scheduleLog();
-          controller.close();
-          return;
-        }
-        if (value) {
-          ingestChunk(value);
-          controller.enqueue(value);
+        while (true) {
+          const { done, value: event } = await iter.next();
+          if (done) {
+            scheduleLog();
+            controller.close();
+            return;
+          }
+          if (
+            event?.type === 'content_block_delta' &&
+            event.delta?.type === 'text_delta'
+          ) {
+            const text = event.delta.text ?? '';
+            if (text.length === 0) continue;
+            accumulator.push(text);
+            controller.enqueue(encoder.encode(text));
+            return;
+          }
+          // Non-text event (message_start, ping, content_block_stop,
+          // message_delta, message_stop, …). Skip and pull again.
         }
       } catch (err) {
-        // Upstream error — log the assistant content we have so far,
-        // then propagate the error downstream.
         scheduleLog();
         controller.error(err);
       }
     },
-    cancel(reason) {
-      // Client aborted. Log what we have, then cancel the upstream.
+    async cancel(reason) {
       scheduleLog();
-      upstreamReader.cancel(reason).catch(() => {
-        // swallow — nothing we can do at this point
-      });
+      try {
+        await iter.return?.(reason);
+      } catch {
+        // swallow — nothing actionable here
+      }
     },
   });
 
-  return new Response(output, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      ...GOVERNED_BY_HEADER,
-    },
-  });
+  return new Response(output, { headers: STREAM_HEADERS });
 }

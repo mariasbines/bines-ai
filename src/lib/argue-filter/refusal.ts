@@ -23,37 +23,12 @@ export const REFUSAL_TEXT =
   "not my lane — maria doesn't have a public position on this, and i don't invent them. what else have you got?";
 
 /**
- * Build a one-shot `ReadableStream` whose body matches the Anthropic SDK's
- * SSE stream shape, so the refusal surfaces to the client exactly as if it
- * had come out of `client.messages.stream(...)`.
- *
- * Frame shape — consumed by src/lib/chat/client.ts which looks for lines
- * beginning `data: ` and parses the JSON:
- *
- *   data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"<REFUSAL_TEXT>"}}
- *
- *   data: {"type":"message_stop"}
- *
- * A single-chunk enqueue keeps the implementation deterministic and the test
- * straightforward. The client parses line-by-line regardless, so chunking is
- * a non-concern.
- *
- * Pure function: no env reads, no side effects, no network.
+ * One-shot ReadableStream emitting REFUSAL_TEXT as raw UTF-8 bytes. The
+ * /api/chat route streams plain text — no framing, no JSON envelope — so
+ * the refusal path produces the same wire shape as the Sonnet path.
  */
-export function refusalEventStream(): ReadableStream<Uint8Array> {
-  const deltaFrame = {
-    type: 'content_block_delta',
-    index: 0,
-    delta: { type: 'text_delta', text: REFUSAL_TEXT },
-  };
-  const stopFrame = { type: 'message_stop' };
-
-  const body =
-    `data: ${JSON.stringify(deltaFrame)}\n\n` +
-    `data: ${JSON.stringify(stopFrame)}\n\n`;
-
-  const bytes = new TextEncoder().encode(body);
-
+export function refusalStream(): ReadableStream<Uint8Array> {
+  const bytes = new TextEncoder().encode(REFUSAL_TEXT);
   return new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(bytes);
