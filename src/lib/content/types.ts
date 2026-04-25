@@ -19,14 +19,24 @@ const TAG = z
     'tag must be lowercase-kebab (alphanumeric + single hyphens)',
   );
 
+/**
+ * Media references can be either a full URL (https://...) or an absolute
+ * same-origin path (/media/...). Same-origin paths let assets in
+ * `public/` be referenced without hard-coding the deployment URL.
+ */
+const URL_OR_PATH = z.string().refine(
+  (s) => s.startsWith('/') || /^https?:\/\//.test(s),
+  'must be a same-origin path starting with "/" or a full http(s) URL',
+);
+
 const MEDIA = z.object({
   readMinutes: z.number().int().positive(),
   watchMinutes: z.number().int().positive().optional(),
-  headerVideo: z.string().url().optional(),
-  posterFrame: z.string().url().optional(),
-  captions: z.string().url().optional(),
-  testimonial: z.string().url().optional(),
-  testimonialCaptions: z.string().url().optional(),
+  headerVideo: URL_OR_PATH.optional(),
+  posterFrame: URL_OR_PATH.optional(),
+  captions: URL_OR_PATH.optional(),
+  testimonial: URL_OR_PATH.optional(),
+  testimonialCaptions: URL_OR_PATH.optional(),
 });
 export type Media = z.infer<typeof MEDIA>;
 
