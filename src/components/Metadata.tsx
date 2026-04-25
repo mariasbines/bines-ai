@@ -20,7 +20,7 @@ export function Metadata({ piece, className }: MetadataProps) {
     <dl
       className={`font-mono text-xs grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 ${className ?? ''}`}
     >
-      <dt className="text-ink/60">published</dt>
+      <dt className="text-ink/60">mused on</dt>
       <dd>
         <time dateTime={published}>{fmtDate(published)}</time>
       </dd>
