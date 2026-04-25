@@ -140,26 +140,32 @@ export function Postmark({
   return (
     <svg
       width={size}
-      height={size * 1.05}
-      viewBox="0 0 200 210"
+      height={size * 1.1}
+      viewBox="0 0 200 220"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label={`postmark ${dateLabel}`}
       className={className}
     >
       <defs>
-        <path id={arcId} d="M 35 178 A 80 18 0 0 0 165 178" />
+        <path id={arcId} d="M 12 100 A 88 88 0 0 0 188 100" />
       </defs>
       <circle cx={100} cy={100} r={70} fill="none" stroke="currentColor" strokeWidth={2} />
       {shapeFor(number)}
       <text
         fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
         fontWeight={600}
-        fontSize={20}
+        fontSize={18}
         fill="currentColor"
-        letterSpacing={1.4}
+        letterSpacing={1.6}
       >
-        <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">
+        <textPath
+          href={`#${arcId}`}
+          // @ts-expect-error — SVG2 attribute, types lag
+          side="right"
+          startOffset="50%"
+          textAnchor="middle"
+        >
           {dateLabel}
         </textPath>
       </text>
