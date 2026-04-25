@@ -6,7 +6,7 @@ published: "2026-04-25"
 status: "in-rotation"
 tags: [governance, ai, founder, enterprise]
 media:
-  readMinutes: 5
+  readMinutes: 4
 pushback:
   count: 0
 excerpt: "Curiosity about what I do eventually leads to glazed eyeballs and a question about what I mean by compliance-first AI. The most honest answer I can give is the cleanup after the next mess we haven't named yet."
@@ -25,8 +25,6 @@ We three founders shaped SynapseDx over a lot of conversations. Mike did the cod
 
 Agents had to talk to each other. Talk to source systems. Take the ETL off our hands — the ugly part, not the rest of the job. Twenty-five years of it for me. Thirty for Mike. Fifteen for Dan. Seventy years between us. The worst.
 
-We needed all of it to be approachable from a chat interface that didn't require IT in the loop.
-
 So what does *compliance-first* actually mean?
 
 The honest answer first: I wanted to know what the *fuck* the agents were doing. As much as I love them, I am still unsure — possibly a little distrustful — of what they are up to. I am not the only one. Governments, which is to say *people,* would also like to know what these systems are up to, especially when what they are up to starts affecting markets, economies, and human beings.
@@ -37,19 +35,11 @@ The architectural answer is a consequence of the honest one.
 
 Anthropic has *Routines* — focused on the routine itself running well, not on the audit layer around it. Microsoft says it has governance; what they actually ship is a log of which agents ran which APIs, executed by which identity token. That is observability dressed as audit. When the auditor asks *why a Dynamics CRM record was updated — and who actually decided it should be,* you start a four-month forensic exercise of chasing emails and spreadsheets to reconstruct what the agent thought it was doing. One breadcrumb at a time.
 
-A handful of other vendors are circling the same problem from different angles. None of them are shipping audited trails out of the box yet. (I keep looking.)
-
-Compliance-first is coming. Probably 2027. The market hasn't caught up because the consequences haven't shown up — yet.
-
-The interesting question, in the meantime, is what the architecture has to *let the routines do.*
+A handful of other vendors are circling. None are shipping audited trails out of the box yet. (I keep looking.) Compliance-first is coming. Probably 2027.
 
 A compliance-first routine should be invisible to the user. They do not notice the routine. They notice that the thing they have always done now fits with their systems, works the way it should, and produces a record nobody had to chase. We named the thing they did and built the rails around it.
 
 Routines for enterprise. Not for developers. Not for the AI-curious.
-
-Pricing is its own problem. Nobody can actually tell you what a given business process costs them with AI. The closest anyone gets is old maths — cost per hour × hours per process. Rough then. Rougher now. The pipeline does not run on humans.
-
-You can find out how many tokens it took to get to the centre of a Tootsie Pop. Every API call. Every MCP call. Rolling that up across a routine? Even Anthropic does not provide it out of the box.
 
 Yes, it risks putting me out of business. We are essentially building the thing that compresses the work I've spent twenty-five years getting good at. I am aware. I have not made my peace with it — I have decided to own it instead. Doing what I always quietly dreamed of: automating myself out of caring about the *how,* and into caring only that it *works.* That it is reliable. Compliant. Architecturally sound. All the things vibe coding skips.
 
@@ -63,6 +53,8 @@ We built the version that constrains.
 
 None of this lands until someone gets fined. A bank's helpful agent will return Customer A's portfolio summary to Customer B, who pleasantly asked for theirs. The regulator will reach for the section about high-risk AI under Article 14 of the EU AI Act. The fine will run to seven percent of global turnover, and the headlines will write themselves.
 
-Boards will discover compliance-first overnight.
+Boards will discover compliance-first overnight. The architects in those rooms will have already shipped. The bystanders will have explaining to do.
+
+I am not getting replaced. Neither should you.
 
 *— maria*
