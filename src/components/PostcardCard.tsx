@@ -28,7 +28,7 @@ export function PostcardCard({ postcard, linkTitle = true }: PostcardCardProps) 
 
   return (
     <article
-      className="bg-paper-2 border border-ink/15 rounded-sm px-6 py-7 sm:px-8 sm:py-8 mb-6 shadow-[0_1px_0_rgba(26,24,20,0.04)] border-l-[4px] border-l-accent"
+      className="bg-paper-2 border border-ink/15 rounded-sm px-6 py-7 sm:px-8 sm:py-8 mb-6 shadow-[0_1px_0_rgba(26,24,20,0.04)] border-l-[4px] border-l-accent motion-safe:transition-all motion-safe:duration-200 hover:-translate-y-0.5 hover:shadow-md"
       style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
     >
       <header className="mb-4">
