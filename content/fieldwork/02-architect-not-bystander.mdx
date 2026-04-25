@@ -35,7 +35,11 @@ The architectural answer is shorter: compliance-first means the system can be pr
 
 The architectural answer is a consequence of the honest one.
 
-We are not the only people thinking this way. Anthropic has *Routines.* Other vendors are circling. The interesting question is what the architecture has to *let the routines do.*
+Anthropic has *Routines* — focused on the routine itself running well, not on the audit layer around it. Databricks has Agent Bricks. A handful of other vendors are circling the same problem from different angles. None of them are shipping audited trails out of the box yet. (I keep looking.)
+
+Compliance-first is coming. Probably 2027. The market hasn't caught up because the consequences haven't shown up — yet.
+
+The interesting question, in the meantime, is what the architecture has to *let the routines do.*
 
 A compliance-first routine has to be shareable — you should be able to hand it to a colleague and have them run it the same way. It has to be priced — you should see what it costs to run, in real money, every time it runs. It has to be auditable at the moment of action, not retrofitted at the end of a quarter. And it has to gate the source systems, so the only sanctioned way through is the routine itself.
 
@@ -53,6 +57,8 @@ Right now the easy thing is documenting *which model the AI is using.* As if tha
 
 We built the version that constrains.
 
-It is going to take a few quarters before everyone understands why that matters.
+None of this lands until someone gets fined. A bank's helpful agent will return Customer A's portfolio summary to Customer B, who pleasantly asked for theirs. The regulator will reach for the section about high-risk AI under Article 14 of the EU AI Act. The fine will run to seven percent of global turnover, and the headlines will write themselves.
+
+Boards will discover compliance-first overnight.
 
 *— maria*
