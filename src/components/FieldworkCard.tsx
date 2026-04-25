@@ -29,8 +29,13 @@ export function FieldworkCard({ piece }: FieldworkCardProps) {
 
   return (
     <article
-      className="bg-paper-2 border border-ink/20 rounded-sm px-8 py-8 sm:px-10 sm:py-10 shadow-[0_1px_0_rgba(26,24,20,0.06)] border-t-[6px] border-t-accent"
-      style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
+      className="border border-ink/20 rounded-sm px-8 py-8 sm:px-10 sm:py-10 shadow-[0_1px_0_rgba(26,24,20,0.06)] border-t-[6px] border-t-accent"
+      style={
+        {
+          ['--color-accent' as string]: accentVar(accent),
+          backgroundColor: `color-mix(in srgb, ${accentVar(accent)} 10%, var(--color-paper-2))`,
+        } as React.CSSProperties
+      }
     >
       <div className="font-mono text-xs uppercase tracking-[0.14em] text-ink/60 mb-4">
         <span className="text-accent font-bold">fieldwork {idPadded}</span>
@@ -40,7 +45,7 @@ export function FieldworkCard({ piece }: FieldworkCardProps) {
         <span>{statusLabel}</span>
       </div>
 
-      <h2 className="font-serif font-black text-4xl sm:text-5xl leading-[1.05] tracking-tight mb-6">
+      <h2 className="font-serif font-black text-4xl sm:text-5xl leading-[1.05] tracking-tight mb-6 break-words">
         <Link
           href={`/fieldwork/${slug}`}
           className="hover:text-accent transition-colors motion-reduce:transition-none"
