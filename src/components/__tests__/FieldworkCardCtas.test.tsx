@@ -5,10 +5,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 vi.mock('../VideoLoop', () => ({
   VideoLoop: ({ alt }: { alt: string }) => <div data-testid="video-loop">{alt}</div>,
 }));
-vi.mock('../PushBackModal', () => ({
-  PushBackModal: ({ open }: { open: boolean }) =>
-    open ? <div role="dialog" data-testid="pushback-dialog" /> : null,
-}));
 vi.mock('../WatchDialog', () => ({
   WatchDialog: ({ open, title }: { open: boolean; title: string }) =>
     open ? <div role="dialog" aria-label={title} data-testid="watch-dialog">{title}</div> : null,
@@ -79,9 +75,8 @@ describe('<FieldworkCardCtas>', () => {
     expect(link).toHaveAttribute('href', '/fieldwork/a');
   });
 
-  it('[ push back ] is enabled and opens PushBackModal', () => {
+  it('does NOT render [ push back ] — hidden until v2 redesign ships', () => {
     render(<FieldworkCardCtas piece={basePiece} />);
-    // [ push back ] wired in 001.014 — now enabled and opens PushBackModal
-    expect(screen.getByRole('button', { name: /push back/i })).not.toBeDisabled();
+    expect(screen.queryByRole('button', { name: /push back/i })).not.toBeInTheDocument();
   });
 });
