@@ -1,0 +1,32 @@
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
+import { ChatInterface } from '@/components/ChatInterface';
+
+export const metadata: Metadata = {
+  title: 'Argue',
+  description:
+    "Argue with an AI trained on Maria's voice. Push back, ask hard questions, try to change its mind.",
+};
+
+export default function ArguePage() {
+  return (
+    <div className="max-w-3xl">
+      <header className="mb-10">
+        <h1 className="font-serif font-black text-5xl tracking-tight mb-4">Argue</h1>
+        <p className="font-serif text-lg leading-relaxed text-ink/80 max-w-xl">
+          This is an AI trained on Maria&apos;s voice. It&apos;s not her. Push back, ask it hard
+          questions, try to change its mind. Refresh to clear the conversation.
+        </p>
+      </header>
+
+      {/*
+        Story 003.002: <ChatInterface> uses next/navigation's useSearchParams
+        to read `?from=<slug>` for piece-aware chats. Next.js 15 requires
+        useSearchParams consumers to be inside a Suspense boundary.
+      */}
+      <Suspense fallback={null}>
+        <ChatInterface />
+      </Suspense>
+    </div>
+  );
+}

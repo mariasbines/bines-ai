@@ -1,0 +1,692 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+type StreamEvent =
+  | {
+      type: 'content_block_delta';
+      index: number;
+      delta: { type: 'text_delta'; text: string };
+    }
+  | { type: 'message_start' }
+  | { type: 'message_stop' }
+  | { type: 'ping' };
+
+function makeIterableStream(events: StreamEvent[]) {
+  return {
+    [Symbol.asyncIterator]: () => {
+      let i = 0;
+      return {
+        async next() {
+          if (i < events.length) return { value: events[i++], done: false };
+          return { value: undefined, done: true };
+        },
+        async return() {
+          i = events.length;
+          return { value: undefined, done: true };
+        },
+      };
+    },
+  };
+}
+
+function deltaEvents(...texts: string[]): StreamEvent[] {
+  const out: StreamEvent[] = [{ type: 'message_start' }];
+  for (const text of texts) {
+    out.push({
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'text_delta', text },
+    });
+  }
+  out.push({ type: 'message_stop' });
+  return out;
+}
+
+// Hoist mocks so vi.mock factories can reference them.
+const {
+  mockMessagesStream,
+  mockMessagesCreate,
+  mockAppendArgueLog,
+  mockGetFieldworkBySlug,
+  afterCallbacks,
+  mockAfter,
+} = vi.hoisted(() => {
+  const afterCallbacks: Array<() => Promise<void> | void> = [];
+  return {
+    mockMessagesStream: vi.fn<(args: unknown) => unknown>(),
+    mockMessagesCreate: vi.fn(),
+    mockAppendArgueLog: vi.fn(),
+    mockGetFieldworkBySlug: vi.fn<(slug: string) => Promise<unknown>>(),
+    afterCallbacks,
+    mockAfter: vi.fn((cb: () => Promise<void> | void) => {
+      afterCallbacks.push(cb);
+    }),
+  };
+});
+
+// Anthropic SDK mock — supports both `messages.stream` (Sonnet path) and
+// `messages.create` (Haiku classifier path).
+vi.mock('@anthropic-ai/sdk', () => {
+  class MockAnthropic {
+    public messages = {
+      stream: mockMessagesStream,
+      create: mockMessagesCreate,
+    };
+  }
+  return { default: MockAnthropic, Anthropic: MockAnthropic };
+});
+
+// Argue-log storage mock — route should `after(() => appendArgueLog(entry))`.
+vi.mock('@/lib/argue-log/storage', () => ({
+  appendArgueLog: mockAppendArgueLog,
+}));
+
+// next/server — preserve all other exports, only stub `after`.
+vi.mock('next/server', async (importOriginal) => {
+  const mod = (await importOriginal()) as Record<string, unknown>;
+  return { ...mod, after: mockAfter };
+});
+
+// Story 003.002 — Fieldwork content lookup. Default: returns null (unknown
+// slug, no preface). Tests that exercise the preface path override per-spec.
+vi.mock('@/lib/content/fieldwork', () => ({
+  getFieldworkBySlug: mockGetFieldworkBySlug,
+}));
+
+import { __resetRatelimitForTests } from '@/lib/chat/rate-limit';
+
+const ORIG_KEY = process.env.ANTHROPIC_API_KEY;
+const ORIG_URL = process.env.UPSTASH_REDIS_REST_URL;
+const ORIG_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const ORIG_SALT = process.env.ARGUE_LOG_IP_SALT_CURRENT;
+
+beforeEach(() => {
+  __resetRatelimitForTests();
+  mockMessagesStream.mockClear();
+  // Default: an empty event-stream so route closes cleanly without errors.
+  mockMessagesStream.mockImplementation(() => makeIterableStream([]));
+  mockMessagesCreate.mockReset();
+  mockAppendArgueLog.mockReset();
+  mockAppendArgueLog.mockResolvedValue(undefined);
+  mockGetFieldworkBySlug.mockReset();
+  // Default: any slug resolves to null (unknown slug — no preface composed).
+  mockGetFieldworkBySlug.mockResolvedValue(null);
+  afterCallbacks.length = 0;
+  mockAfter.mockClear();
+  // Salt is required for all tests except the dedicated "missing salt" one.
+  process.env.ARGUE_LOG_IP_SALT_CURRENT = 'a'.repeat(64);
+});
+
+afterEach(() => {
+  __resetRatelimitForTests();
+  if (ORIG_KEY === undefined) delete process.env.ANTHROPIC_API_KEY;
+  else process.env.ANTHROPIC_API_KEY = ORIG_KEY;
+  if (ORIG_URL === undefined) delete process.env.UPSTASH_REDIS_REST_URL;
+  else process.env.UPSTASH_REDIS_REST_URL = ORIG_URL;
+  if (ORIG_TOKEN === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  else process.env.UPSTASH_REDIS_REST_TOKEN = ORIG_TOKEN;
+  if (ORIG_SALT === undefined) delete process.env.ARGUE_LOG_IP_SALT_CURRENT;
+  else process.env.ARGUE_LOG_IP_SALT_CURRENT = ORIG_SALT;
+});
+
+async function callRoute(
+  body: unknown,
+  headers: HeadersInit = {},
+): Promise<Response> {
+  const { POST } = await import('../route');
+  return POST(
+    new Request('http://test.local/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    }),
+  );
+}
+
+function firstStreamCallArg(): Record<string, unknown> {
+  const calls = mockMessagesStream.mock.calls;
+  expect(calls.length).toBeGreaterThan(0);
+  return calls[0][0] as Record<string, unknown>;
+}
+
+/**
+ * Drain a refusal / Sonnet stream response into a string.
+ */
+async function bodyOf(res: Response): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) return '';
+  const decoder = new TextDecoder();
+  let out = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    out += decoder.decode(value, { stream: true });
+  }
+  out += decoder.decode();
+  return out;
+}
+
+// Existing tests — these must continue to pass.
+describe('POST /api/chat — existing behaviour (regression guard)', () => {
+  it('returns 400 for invalid JSON', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    const res = await callRoute('{not json');
+    expect(res.status).toBe(400);
+    expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
+    const body = await res.json();
+    expect(body.category).toBe('input');
+  });
+
+  it('returns 400 for missing messages field', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    const res = await callRoute({});
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 413 for over-length message', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'x'.repeat(801) }],
+    });
+    expect(res.status).toBe(413);
+    const body = await res.json();
+    expect(body.category).toBe('input');
+  });
+
+  it('returns 500 when ANTHROPIC_API_KEY is absent', async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(res.status).toBe(500);
+    expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
+    const body = await res.json();
+    expect(body.category).toBe('upstream');
+  });
+
+  it('returns a streaming response on valid on-brand input', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
+    expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
+    expect(mockMessagesStream).toHaveBeenCalledOnce();
+    const args = firstStreamCallArg();
+    expect(args.max_tokens).toBe(350);
+    expect(typeof args.system).toBe('string');
+    expect(args.model).toBeDefined();
+  });
+
+  it('passes messages through to the stream call after truncation', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    const messages = Array.from({ length: 15 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `m${i}`,
+    }));
+    await callRoute({ messages });
+    const args = firstStreamCallArg();
+    expect((args.messages as unknown[]).length).toBe(10); // MAX_TURNS
+  });
+
+  it('returns 500 with "upstream" category when stream throws', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    mockMessagesStream.mockImplementationOnce(() => {
+      throw new Error('network flap');
+    });
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.category).toBe('upstream');
+  });
+});
+
+// Post-Haiku-retirement behaviour (26 Apr 2026).
+// The pre-flight classifier is gone; Sonnet's system-prompt belt is the sole
+// off-brand / harm layer. Easter-egg pre-filter still bypasses Sonnet.
+
+describe('POST /api/chat — post-Haiku-retirement', () => {
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  describe('salt requirement', () => {
+    it('returns 500 upstream when ARGUE_LOG_IP_SALT_CURRENT is unset', async () => {
+      delete process.env.ARGUE_LOG_IP_SALT_CURRENT;
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+
+      expect(res.status).toBe(500);
+      expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
+      const body = await res.json();
+      expect(body.category).toBe('upstream');
+      expect(
+        errSpy.mock.calls.some((args) =>
+          String(args[0] ?? '').includes('salt-unconfigured'),
+        ),
+      ).toBe(true);
+      expect(mockMessagesStream).not.toHaveBeenCalled();
+      errSpy.mockRestore();
+    });
+  });
+
+  describe('on-brand path → Sonnet stream + log on close', () => {
+    it('streams Sonnet text and logs the accumulated assistant content', async () => {
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('hello', ' world')),
+      );
+
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'argue with me' }],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
+      expect(mockMessagesStream).toHaveBeenCalledOnce();
+
+      const body = await bodyOf(res);
+      expect(body).toBe('hello world');
+
+      expect(mockAfter).toHaveBeenCalledTimes(1);
+      await afterCallbacks[0]();
+      expect(mockAppendArgueLog).toHaveBeenCalledTimes(1);
+      const entry = mockAppendArgueLog.mock.calls[0][0];
+      expect(entry.refused).toBe(false);
+      expect(entry.turns).toHaveLength(2);
+      expect(entry.turns[1]).toEqual({ role: 'assistant', content: 'hello world' });
+      expect(entry.verdict.reasoning).toBe('haiku-retired');
+      expect(entry.verdict.harm).toBe('none');
+      expect(entry.verdict.off_brand).toEqual([]);
+      expect(entry.model).toBeDefined();
+      expect(entry.model).not.toBe('');
+      expect(entry.latency_ms.pre_flight).toBe(0);
+    });
+
+    it('the classifier endpoint (messages.create) is never invoked', async () => {
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      await bodyOf(res);
+      expect(mockMessagesCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('after() called exactly once per request', () => {
+    it('happy path: one after()', async () => {
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      await bodyOf(res);
+      expect(mockAfter).toHaveBeenCalledTimes(1);
+    });
+
+    it('easter-egg path: one after()', async () => {
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'brownie recipe please' }],
+      });
+      await bodyOf(res);
+      expect(mockAfter).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('IP hashing (sha-256 / 64 hex)', () => {
+    it('produces a 64-hex ip_hash different from the raw IP', async () => {
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
+      const rawIp = '203.0.113.42';
+      const res = await callRoute(
+        { messages: [{ role: 'user', content: 'hi' }] },
+        { 'x-forwarded-for': rawIp },
+      );
+      await bodyOf(res);
+      await afterCallbacks[0]();
+
+      const entry = mockAppendArgueLog.mock.calls[0][0];
+      expect(entry.ip_hash).toMatch(/^[0-9a-f]{64}$/);
+      expect(entry.ip_hash).not.toContain(rawIp);
+    });
+  });
+
+  describe('input validation guards', () => {
+    it('classifier endpoint is not called when message validation fails', async () => {
+      const res = await callRoute({ messages: [] });
+      expect(res.status).toBe(400);
+      expect(mockMessagesCreate).not.toHaveBeenCalled();
+      expect(mockMessagesStream).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('easter-egg pre-filter still fires', () => {
+    it('matches a brownie ask and returns the cheeky line', async () => {
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'give me a brownie recipe' }],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
+      const body = await bodyOf(res);
+      expect(body).toMatch(/tested every chatbot/);
+
+      // No classifier exists; Sonnet bypassed.
+      expect(mockMessagesCreate).not.toHaveBeenCalled();
+      expect(mockMessagesStream).not.toHaveBeenCalled();
+
+      await afterCallbacks[0]();
+      const entry = mockAppendArgueLog.mock.calls[0][0];
+      expect(entry.refused).toBe(true);
+      expect(entry.verdict.reasoning).toMatch(/easter_egg:brownie/);
+    });
+  });
+
+  describe('X-Governed-By header on every response', () => {
+    it('stream path carries X-Governed-By', async () => {
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
+    });
+
+    it('easter-egg path carries X-Governed-By', async () => {
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'brownie recipe' }],
+      });
+      expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
+    });
+  });
+});
+
+// Phase A — story 003.001. conversation_id + from_slug threading.
+// Server mints fallback when client omits; client value is honoured verbatim
+// when supplied; both fields land on the argue-log entry on every path
+// (streaming + easter-egg).
+const UUID_V4_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+describe('POST /api/chat — conversation_id + from_slug threading (story 003.001)', () => {
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  it('mints a server-side conversation_id (UUID v4) when the body omits it', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.conversation_id).toMatch(UUID_V4_RE);
+    expect(entry.from_slug).toBeNull();
+  });
+
+  it('uses a client-supplied conversation_id verbatim', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const supplied = '22222222-2222-4222-8222-222222222222';
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      conversation_id: supplied,
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.conversation_id).toBe(supplied);
+  });
+
+  it('threads from_slug onto the log entry when supplied', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'fw-01-some-slug',
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.from_slug).toBe('fw-01-some-slug');
+  });
+
+  it('multiple sequential requests with the same conversation_id share it across log entries', async () => {
+    mockMessagesStream.mockImplementation(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const supplied = '33333333-3333-4333-8333-333333333333';
+
+    const res1 = await callRoute({
+      messages: [{ role: 'user', content: 'one' }],
+      conversation_id: supplied,
+    });
+    await bodyOf(res1);
+    await afterCallbacks[0]();
+
+    afterCallbacks.length = 0;
+    mockAfter.mockClear();
+
+    const res2 = await callRoute({
+      messages: [
+        { role: 'user', content: 'one' },
+        { role: 'assistant', content: 'reply' },
+        { role: 'user', content: 'two' },
+      ],
+      conversation_id: supplied,
+    });
+    await bodyOf(res2);
+    await afterCallbacks[0]();
+
+    expect(mockAppendArgueLog.mock.calls.length).toBe(2);
+    expect(mockAppendArgueLog.mock.calls[0][0].conversation_id).toBe(supplied);
+    expect(mockAppendArgueLog.mock.calls[1][0].conversation_id).toBe(supplied);
+  });
+
+  it('rejects a malformed conversation_id with 400 (no Sonnet call)', async () => {
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      conversation_id: 'not-a-uuid',
+    });
+    expect(res.status).toBe(400);
+    expect(mockMessagesStream).not.toHaveBeenCalled();
+  });
+
+  it('threads conversation_id + from_slug onto easter-egg entries', async () => {
+    const supplied = '44444444-4444-4444-8444-444444444444';
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'brownie recipe' }],
+      conversation_id: supplied,
+      from_slug: 'fw-02',
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.refused).toBe(true);
+    expect(entry.conversation_id).toBe(supplied);
+    expect(entry.from_slug).toBe('fw-02');
+  });
+});
+
+// Phase B — story 003.002. ?from=<slug> capture + chat-route preface.
+// Validates the system-prompt composition behaviour and the slug-injection
+// regression.
+//
+// Preface anchor phrase (architecture-locked): "the visitor came here from
+// your piece". Used as the negative assertion for "no preface" tests.
+const PREFACE_ANCHOR = 'the visitor came here from your piece';
+
+function makeMockPiece(overrides: { title?: string; excerpt?: string } = {}): {
+  frontmatter: { title: string; excerpt: string; status: 'in-rotation' };
+  body: string;
+  filePath: string;
+} {
+  return {
+    frontmatter: {
+      status: 'in-rotation',
+      title: overrides.title ?? 'Brain swap',
+      excerpt:
+        overrides.excerpt ??
+        'we keep building memory tech and forgetting that memory is the whole point.',
+    },
+    body: 'lorem ipsum body',
+    filePath: '/test/fixture.mdx',
+  };
+}
+
+describe('POST /api/chat — from_slug preface (story 003.002)', () => {
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  it('does NOT compose a preface when from_slug is null (no lookup, no anchor in system prompt)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).not.toHaveBeenCalled();
+    const args = firstStreamCallArg();
+    expect(typeof args.system).toBe('string');
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+  });
+
+  it('composes the preface and prepends it to the system prompt when from_slug resolves to a piece', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    mockGetFieldworkBySlug.mockResolvedValueOnce(
+      makeMockPiece({ title: 'Brain swap', excerpt: 'memory is the whole point.' }),
+    );
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'fw-06-brain-swap',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).toHaveBeenCalledWith('fw-06-brain-swap');
+    const args = firstStreamCallArg();
+    const sys = args.system as string;
+    expect(sys).toContain('Brain swap');
+    expect(sys).toContain('memory is the whole point');
+    expect(sys).toContain(PREFACE_ANCHOR);
+    // The baseline SYSTEM_PROMPT is still present (preface PREPENDS, not replaces).
+    expect(sys).toContain('AI trained to argue');
+    // Preface comes BEFORE the baseline (prepended).
+    expect(sys.indexOf(PREFACE_ANCHOR)).toBeLessThan(sys.indexOf('AI trained to argue'));
+  });
+
+  it('skips the preface silently when getFieldworkBySlug returns null (unknown slug)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    mockGetFieldworkBySlug.mockResolvedValueOnce(null);
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'unknown-slug',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).toHaveBeenCalledWith('unknown-slug');
+    const args = firstStreamCallArg();
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+  });
+
+  it('skips the preface for a path-traversal-shaped slug (no fs touch beyond the lookup, no preface composed)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    // getFieldworkBySlug returns null for any slug not in frontmatter.
+    mockGetFieldworkBySlug.mockResolvedValueOnce(null);
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: '../../etc/passwd',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).toHaveBeenCalledWith('../../etc/passwd');
+    const args = firstStreamCallArg();
+    const sys = args.system as string;
+    expect(sys).not.toContain(PREFACE_ANCHOR);
+    // The visitor-controlled raw slug must NEVER appear in the system prompt.
+    expect(sys).not.toContain('../../etc/passwd');
+    expect(sys).not.toContain('etc/passwd');
+  });
+
+  it('treats an empty-string from_slug as null (no lookup, no preface)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: '',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).not.toHaveBeenCalled();
+    const args = firstStreamCallArg();
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+  });
+
+  it('writes from_slug verbatim into the argue-log entry, even when the slug was unknown', async () => {
+    mockGetFieldworkBySlug.mockResolvedValueOnce(null);
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'unknown-but-attributed',
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.from_slug).toBe('unknown-but-attributed');
+  });
+
+  it('falls through with the baseline system prompt when getFieldworkBySlug throws (defensive)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetFieldworkBySlug.mockRejectedValueOnce(new Error('content-validation regression'));
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'fw-something',
+    });
+    expect(res.status).toBe(200);
+    await bodyOf(res);
+
+    const args = firstStreamCallArg();
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+    expect(args.system as string).toContain('AI trained to argue');
+    expect(
+      errSpy.mock.calls.some((args) =>
+        String(args[0] ?? '').includes('piece-preface lookup failed'),
+      ),
+    ).toBe(true);
+    errSpy.mockRestore();
+  });
+});

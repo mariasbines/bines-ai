@@ -1,0 +1,15 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="bines.ai colophon stamp">
+  <defs>
+    <path id="bines-stamp-top" d="M 26 100 A 74 74 0 0 1 174 100" />
+    <path id="bines-stamp-bot" d="M 26 100 A 74 74 0 0 0 174 100" />
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="currentColor" stroke-width="1.6" />
+  <circle cx="100" cy="100" r="55" fill="none" stroke="currentColor" stroke-width="0.6" />
+  <text font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="12" fill="currentColor" letter-spacing="3.4">
+    <textPath href="#bines-stamp-top" startOffset="50%" text-anchor="middle">BINES.AI</textPath>
+  </text>
+  <text font-family="Inter, system-ui, sans-serif" font-weight="500" font-size="8.5" fill="currentColor" letter-spacing="2.4">
+    <textPath href="#bines-stamp-bot" side="right" startOffset="50%" text-anchor="middle">KENTUCKY · LONDON</textPath>
+  </text>
+  <text x="100" y="128" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-weight="900" font-size="96" fill="currentColor">b</text>
+</svg>
