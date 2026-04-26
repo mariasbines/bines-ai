@@ -123,7 +123,7 @@ export function ChatInterface() {
       />
 
       <p className="mt-4 font-mono text-xs text-ink/50 leading-relaxed">
-        this conversation is not stored. what you type is sent to Anthropic.
+        what you type is sent to anthropic to generate a reply, and kept on this site for 90 days so maria can see how the chat is used. no ip, no account — just the conversation.
         <span className="block mt-1">
           You&apos;re talking to an AI trained on Maria&apos;s voice. It&apos;s not Maria. It
           gets things wrong sometimes — push back when it does.

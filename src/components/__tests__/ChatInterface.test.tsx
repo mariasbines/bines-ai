@@ -36,10 +36,11 @@ describe('<ChatInterface>', () => {
     expect(screen.getByText(/push back when it does/i)).toBeInTheDocument();
   });
 
-  it('renders the privacy note', () => {
+  it('renders the privacy note reflecting the 90-day retention window', () => {
     render(<ChatInterface />);
-    expect(screen.getByText(/not stored/i)).toBeInTheDocument();
-    expect(screen.getByText(/sent to Anthropic/i)).toBeInTheDocument();
+    expect(screen.getByText(/sent to anthropic/i)).toBeInTheDocument();
+    expect(screen.getByText(/kept on this site for 90 days/i)).toBeInTheDocument();
+    expect(screen.getByText(/no ip, no account/i)).toBeInTheDocument();
   });
 
   it('renders the chat input with submit button', () => {
