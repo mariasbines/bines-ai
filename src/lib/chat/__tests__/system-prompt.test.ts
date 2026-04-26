@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SYSTEM_PROMPT } from '../system-prompt';
 import { FIELDWORK_01_BODY } from '../fieldwork-01';
-import { REFUSAL_TEXT } from '@/lib/argue-filter/refusal';
 
 describe('SYSTEM_PROMPT', () => {
   it('declares identity as "AI trained to argue in Maria\'s voice — NOT Maria"', () => {
@@ -64,9 +63,9 @@ describe('SYSTEM_PROMPT', () => {
     expect(SYSTEM_PROMPT).toMatch(/# Refusal rules/);
   });
 
-  // Story 002.003 — out-of-scope tightening. Belts the Haiku classifier so
-  // Sonnet independently deflects the seven Q6 categories if the classifier
-  // misses. See AC-003.
+  // Story 002.003 — out-of-scope tightening. Was originally a belt for the
+  // Haiku classifier; after the 26 Apr classifier retirement Sonnet's prompt
+  // is the sole layer doing the deflection.
 
   describe('out-of-scope topics section (story 002.003, AC-003/AC-004)', () => {
     it('includes a dedicated "Out-of-scope topics" section header', () => {
@@ -111,10 +110,5 @@ describe('SYSTEM_PROMPT', () => {
       expect(SYSTEM_PROMPT).toMatch(/without lecturing|don't lecture/i);
     });
 
-    it('does NOT embed REFUSAL_TEXT verbatim — single source of truth lives in refusal.ts', () => {
-      // AC-003 bullet 3 + scope rule. The prompt describes the *shape* of
-      // the refusal; it must not contain the exact locked string.
-      expect(SYSTEM_PROMPT).not.toContain(REFUSAL_TEXT);
-    });
   });
 });

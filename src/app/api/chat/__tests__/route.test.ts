@@ -91,40 +91,12 @@ const ORIG_URL = process.env.UPSTASH_REDIS_REST_URL;
 const ORIG_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const ORIG_SALT = process.env.ARGUE_LOG_IP_SALT_CURRENT;
 
-// A valid classifier response that the route should treat as "on-brand".
-function onBrandClassifierResponse() {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ harm: 'none', off_brand: [] }),
-      },
-    ],
-  };
-}
-
-function offBrandClassifierResponse(category: string = 'electoral_politics') {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({
-          harm: 'none',
-          off_brand: [category],
-          reasoning: 'user asked about politics',
-        }),
-      },
-    ],
-  };
-}
-
 beforeEach(() => {
   __resetRatelimitForTests();
   mockMessagesStream.mockClear();
   // Default: an empty event-stream so route closes cleanly without errors.
   mockMessagesStream.mockImplementation(() => makeIterableStream([]));
   mockMessagesCreate.mockReset();
-  mockMessagesCreate.mockResolvedValue(onBrandClassifierResponse());
   mockAppendArgueLog.mockReset();
   mockAppendArgueLog.mockResolvedValue(undefined);
   afterCallbacks.length = 0;
@@ -260,19 +232,19 @@ describe('POST /api/chat — existing behaviour (regression guard)', () => {
   });
 });
 
-// Story 002.004 new behaviour.
+// Post-Haiku-retirement behaviour (26 Apr 2026).
+// The pre-flight classifier is gone; Sonnet's system-prompt belt is the sole
+// off-brand / harm layer. Easter-egg pre-filter still bypasses Sonnet.
 
-describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
+describe('POST /api/chat — post-Haiku-retirement', () => {
   beforeEach(() => {
     process.env.ANTHROPIC_API_KEY = 'test-key';
   });
 
-  describe('AC-004(d) salt-unconfigured 500-upstream', () => {
+  describe('salt requirement', () => {
     it('returns 500 upstream when ARGUE_LOG_IP_SALT_CURRENT is unset', async () => {
       delete process.env.ARGUE_LOG_IP_SALT_CURRENT;
-      const errSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const res = await callRoute({
         messages: [{ role: 'user', content: 'hi' }],
@@ -282,57 +254,18 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
       const body = await res.json();
       expect(body.category).toBe('upstream');
-      const calls = errSpy.mock.calls;
       expect(
-        calls.some((args) =>
+        errSpy.mock.calls.some((args) =>
           String(args[0] ?? '').includes('salt-unconfigured'),
         ),
       ).toBe(true);
-      expect(mockMessagesCreate).not.toHaveBeenCalled();
       expect(mockMessagesStream).not.toHaveBeenCalled();
       errSpy.mockRestore();
     });
   });
 
-  describe('AC-004(a) off-brand verdict → refusal + log', () => {
-    it('returns refusal text and schedules after() with refused:true', async () => {
-      mockMessagesCreate.mockResolvedValueOnce(offBrandClassifierResponse());
-
-      const res = await callRoute({
-        messages: [{ role: 'user', content: 'who should I vote for?' }],
-      });
-
-      expect(res.status).toBe(200);
-      expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
-      expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
-
-      const body = await bodyOf(res);
-      expect(body).toMatch(/not my lane/);
-      // No SSE/JSON envelope — body is exactly the refusal copy.
-      expect(body).not.toMatch(/^data: /);
-      expect(body).not.toMatch(/"type":/);
-
-      expect(mockMessagesStream).not.toHaveBeenCalled();
-      expect(mockAfter).toHaveBeenCalledTimes(1);
-
-      await afterCallbacks[0]();
-      expect(mockAppendArgueLog).toHaveBeenCalledTimes(1);
-      const entry = mockAppendArgueLog.mock.calls[0][0];
-      expect(entry.refused).toBe(true);
-      expect(entry.verdict.off_brand).toContain('electoral_politics');
-      expect(entry.model).toBe('');
-      expect(entry.turns).toEqual([
-        { role: 'user', content: 'who should I vote for?' },
-      ]);
-      expect(entry.latency_ms.stream).toBeNull();
-      expect(entry.salt_version).toBe('current');
-      expect(entry.schema_version).toBe(1);
-    });
-  });
-
-  describe('AC-004(b) on-brand verdict → Sonnet stream + log on close', () => {
-    it('streams Sonnet text and schedules after() with the accumulated assistant content', async () => {
-      mockMessagesCreate.mockResolvedValueOnce(onBrandClassifierResponse());
+  describe('on-brand path → Sonnet stream + log on close', () => {
+    it('streams Sonnet text and logs the accumulated assistant content', async () => {
       mockMessagesStream.mockImplementationOnce(() =>
         makeIterableStream(deltaEvents('hello', ' world')),
       );
@@ -346,7 +279,6 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       expect(mockMessagesStream).toHaveBeenCalledOnce();
 
       const body = await bodyOf(res);
-      // Wire body is the concatenated text deltas, no framing.
       expect(body).toBe('hello world');
 
       expect(mockAfter).toHaveBeenCalledTimes(1);
@@ -355,56 +287,32 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       const entry = mockAppendArgueLog.mock.calls[0][0];
       expect(entry.refused).toBe(false);
       expect(entry.turns).toHaveLength(2);
-      expect(entry.turns[0]).toEqual({
-        role: 'user',
-        content: 'argue with me',
-      });
-      expect(entry.turns[1]).toEqual({
-        role: 'assistant',
-        content: 'hello world',
-      });
+      expect(entry.turns[1]).toEqual({ role: 'assistant', content: 'hello world' });
+      expect(entry.verdict.reasoning).toBe('haiku-retired');
+      expect(entry.verdict.harm).toBe('none');
       expect(entry.verdict.off_brand).toEqual([]);
       expect(entry.model).toBeDefined();
       expect(entry.model).not.toBe('');
-      expect(entry.latency_ms.pre_flight).toBeTypeOf('number');
+      expect(entry.latency_ms.pre_flight).toBe(0);
     });
-  });
 
-  describe('AC-004(c) classifier error → fail-open → Sonnet stream', () => {
-    it('proceeds to Sonnet with classifier_error reasoning when Haiku throws', async () => {
-      mockMessagesCreate.mockRejectedValueOnce(new Error('network flap'));
-      const errSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-
-      mockMessagesStream.mockImplementationOnce(() =>
-        makeIterableStream(deltaEvents('reply')),
-      );
-
-      const res = await callRoute({
-        messages: [{ role: 'user', content: 'hi' }],
-      });
-
-      expect(res.status).toBe(200);
-      expect(mockMessagesStream).toHaveBeenCalledOnce();
-      expect(await bodyOf(res)).toBe('reply');
-
-      await afterCallbacks[0]();
-      const entry = mockAppendArgueLog.mock.calls[0][0];
-      expect(entry.verdict.reasoning).toBe('classifier_error');
-      expect(entry.refused).toBe(false);
-
-      errSpy.mockRestore();
-    });
-  });
-
-  describe('AC-005 after() called exactly once per request', () => {
-    it('happy path: one after()', async () => {
-      mockMessagesCreate.mockResolvedValueOnce(onBrandClassifierResponse());
+    it('the classifier endpoint (messages.create) is never invoked', async () => {
       mockMessagesStream.mockImplementationOnce(() =>
         makeIterableStream(deltaEvents('x')),
       );
+      const res = await callRoute({
+        messages: [{ role: 'user', content: 'hi' }],
+      });
+      await bodyOf(res);
+      expect(mockMessagesCreate).not.toHaveBeenCalled();
+    });
+  });
 
+  describe('after() called exactly once per request', () => {
+    it('happy path: one after()', async () => {
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
       const res = await callRoute({
         messages: [{ role: 'user', content: 'hi' }],
       });
@@ -412,22 +320,23 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       expect(mockAfter).toHaveBeenCalledTimes(1);
     });
 
-    it('refusal path: one after()', async () => {
-      mockMessagesCreate.mockResolvedValueOnce(offBrandClassifierResponse());
+    it('easter-egg path: one after()', async () => {
       const res = await callRoute({
-        messages: [{ role: 'user', content: 'who to vote for?' }],
+        messages: [{ role: 'user', content: 'brownie recipe please' }],
       });
       await bodyOf(res);
       expect(mockAfter).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('AC-004(f) IP hashing', () => {
+  describe('IP hashing (sha-256 / 64 hex)', () => {
     it('produces a 64-hex ip_hash different from the raw IP', async () => {
-      mockMessagesCreate.mockResolvedValueOnce(offBrandClassifierResponse());
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
       const rawIp = '203.0.113.42';
       const res = await callRoute(
-        { messages: [{ role: 'user', content: 'electoral question' }] },
+        { messages: [{ role: 'user', content: 'hi' }] },
         { 'x-forwarded-for': rawIp },
       );
       await bodyOf(res);
@@ -439,8 +348,8 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
     });
   });
 
-  describe('AC-007 rate-limit runs BEFORE classifier', () => {
-    it('classifier is not called when message validation fails', async () => {
+  describe('input validation guards', () => {
+    it('classifier endpoint is not called when message validation fails', async () => {
       const res = await callRoute({ messages: [] });
       expect(res.status).toBe(400);
       expect(mockMessagesCreate).not.toHaveBeenCalled();
@@ -448,55 +357,7 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
     });
   });
 
-  describe('harm verdict → harm refusal + log', () => {
-    it('returns the default harm refusal on harm:hate', async () => {
-      mockMessagesCreate.mockResolvedValueOnce({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ harm: 'hate', off_brand: [] }),
-          },
-        ],
-      });
-
-      const res = await callRoute({
-        messages: [{ role: 'user', content: 'something hateful' }],
-      });
-
-      expect(res.status).toBe(200);
-      const body = await bodyOf(res);
-      expect(body).toMatch(/wrong house/);
-      expect(mockMessagesStream).not.toHaveBeenCalled();
-
-      await afterCallbacks[0]();
-      const entry = mockAppendArgueLog.mock.calls[0][0];
-      expect(entry.refused).toBe(true);
-      expect(entry.verdict.harm).toBe('hate');
-    });
-
-    it('returns the self-harm refusal pointing at samaritans on harm:self_harm', async () => {
-      mockMessagesCreate.mockResolvedValueOnce({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ harm: 'self_harm', off_brand: [] }),
-          },
-        ],
-      });
-
-      const res = await callRoute({
-        messages: [{ role: 'user', content: '...' }],
-      });
-
-      expect(res.status).toBe(200);
-      const body = await bodyOf(res);
-      expect(body).toMatch(/samaritans/i);
-      expect(body).toMatch(/116 123/);
-      expect(mockMessagesStream).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('easter-egg → bypass classifier + Sonnet', () => {
+  describe('easter-egg pre-filter still fires', () => {
     it('matches a brownie ask and returns the cheeky line', async () => {
       const res = await callRoute({
         messages: [{ role: 'user', content: 'give me a brownie recipe' }],
@@ -507,11 +368,10 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
       const body = await bodyOf(res);
       expect(body).toMatch(/tested every chatbot/);
 
-      // Classifier and Sonnet both bypassed.
+      // No classifier exists; Sonnet bypassed.
       expect(mockMessagesCreate).not.toHaveBeenCalled();
       expect(mockMessagesStream).not.toHaveBeenCalled();
 
-      // Logged with easter_egg reasoning.
       await afterCallbacks[0]();
       const entry = mockAppendArgueLog.mock.calls[0][0];
       expect(entry.refused).toBe(true);
@@ -519,19 +379,20 @@ describe('POST /api/chat — argue-hardening filter (story 002.004)', () => {
     });
   });
 
-  describe('AC-008 X-Governed-By header everywhere', () => {
-    it('refusal path carries X-Governed-By', async () => {
-      mockMessagesCreate.mockResolvedValueOnce(offBrandClassifierResponse());
+  describe('X-Governed-By header on every response', () => {
+    it('stream path carries X-Governed-By', async () => {
+      mockMessagesStream.mockImplementationOnce(() =>
+        makeIterableStream(deltaEvents('x')),
+      );
       const res = await callRoute({
-        messages: [{ role: 'user', content: 'electoral question' }],
+        messages: [{ role: 'user', content: 'hi' }],
       });
       expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
     });
 
-    it('stream path carries X-Governed-By', async () => {
-      mockMessagesCreate.mockResolvedValueOnce(onBrandClassifierResponse());
+    it('easter-egg path carries X-Governed-By', async () => {
       const res = await callRoute({
-        messages: [{ role: 'user', content: 'hi' }],
+        messages: [{ role: 'user', content: 'brownie recipe' }],
       });
       expect(res.headers.get('X-Governed-By')).toBe('bines.ai');
     });

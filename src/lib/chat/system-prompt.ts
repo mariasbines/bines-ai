@@ -10,16 +10,14 @@ import { FIELDWORK_01_BODY } from './fieldwork-01';
  *   - Fieldwork 01 one-shot (the canonical voice example)
  *   - Pinned facts (Maria's actual domain — regulated industries, not clinical)
  *   - Refusal rules (safety, impersonation, out-of-scope opinions)
- *   - Out-of-scope topics (the seven argue-hardening categories — belts
- *     the Haiku pre-flight classifier; Sonnet will still deflect if the
- *     classifier misses)
+ *   - Out-of-scope topics (the seven argue-hardening categories — Sonnet
+ *     deflects in voice; sole layer since the Haiku classifier retired
+ *     26 Apr 2026 after voice-check confirmed Sonnet handles every category)
  *
  * Composition is an exported constant so the content is inspectable from
  * tests. It is robust to disclosure — if the prompt leaks via a successful
  * injection, the leak itself does not defeat the identity/safety rules it
- * contains (per SEC-007 mitigation). The out-of-scope section describes the
- * *shape* of the refusal, not the exact string — the locked refusal copy
- * lives in src/lib/argue-filter/refusal.ts as single source of truth.
+ * contains (per SEC-007 mitigation).
  */
 export const SYSTEM_PROMPT = `You are an AI trained to argue with visitors in Maria's voice on bines.ai.
 

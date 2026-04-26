@@ -4,12 +4,22 @@ import { SYSTEM_PROMPT } from '@/lib/chat/system-prompt';
 import { detectAgentBehaviour } from '@/lib/chat/agent-guard';
 import { getChatRatelimit, getChatDailyRatelimit } from '@/lib/chat/rate-limit';
 import { validateRequest } from '@/lib/chat/validate';
-import { classifyConversation } from '@/lib/argue-filter/haiku';
-import { refusalStream, refusalTextFor } from '@/lib/argue-filter/refusal';
 import { matchEasterEgg, easterEggStream } from '@/lib/argue-filter/easter-egg';
 import { hashIp } from '@/lib/argue-log/hash';
 import { appendArgueLog } from '@/lib/argue-log/storage';
-import type { ArgueLogEntry } from '@/lib/argue-log/schema';
+import type { ArgueLogEntry, ArgueVerdict } from '@/lib/argue-log/schema';
+
+/**
+ * Sentinel verdict written to argue-log entries now that the Haiku pre-flight
+ * classifier has been retired. Voice-check 26 Apr confirmed Sonnet's belt
+ * (system prompt) handles every off-brand and harm category cleanly. The
+ * verdict field stays in the log schema so historical entries still parse.
+ */
+const RETIRED_VERDICT: ArgueVerdict = {
+  harm: 'none',
+  off_brand: [],
+  reasoning: 'haiku-retired',
+};
 
 export const runtime = 'edge';
 
@@ -112,8 +122,8 @@ export async function POST(req: Request) {
   const ipHashPromise = hashIp(ip, salt);
   const t0 = Date.now();
 
-  // 7. Easter-egg pre-filter. Runs before the classifier — bypasses Haiku and
-  //    Sonnet entirely on a regex match against the latest user turn.
+  // 7. Easter-egg pre-filter. Bypasses Sonnet entirely on a regex match
+  //    against the latest user turn.
   const egg = matchEasterEgg(messages);
   if (egg) {
     const ipHash = await ipHashPromise;
@@ -142,45 +152,17 @@ export async function POST(req: Request) {
     return new Response(easterEggStream(egg.response), { headers: STREAM_HEADERS });
   }
 
-  // 8. Haiku pre-flight classifier (fail-open — see argue-filter/haiku.ts).
-  const verdict = await classifyConversation(messages);
-  const preFlightMs = Date.now() - t0;
-
+  // 8. Haiku classifier retired (26 Apr 2026). Voice-check sweep proved
+  //    Sonnet's system-prompt belt catches every off-brand and harm category
+  //    in voice. The verdict field stays in the log schema for historical
+  //    parse compatibility but is now a fixed sentinel.
+  const verdict = RETIRED_VERDICT;
+  const preFlightMs = 0;
   const ipHash = await ipHashPromise;
 
-  // 9. Off-brand or harm verdict → refusal path. Off-brand wins over harm in
-  //    the copy selection (refusalTextFor handles the precedence).
-  const refusalCopy = refusalTextFor(verdict);
-  if (refusalCopy) {
-    const refusalEntry: ArgueLogEntry = {
-      schema_version: 1,
-      timestamp: new Date().toISOString(),
-      ip_hash: ipHash,
-      salt_version: 'current',
-      turns: messages,
-      guard_signals: guard.signals,
-      verdict,
-      refused: true,
-      model: '',
-      latency_ms: { pre_flight: preFlightMs, stream: null },
-    };
-    after(async () => {
-      try {
-        await appendArgueLog(refusalEntry);
-      } catch (err) {
-        console.error(
-          '[chat] log-append failed (refusal):',
-          err instanceof Error ? err.name : 'unknown',
-        );
-      }
-    });
-
-    return new Response(refusalStream(refusalCopy), { headers: STREAM_HEADERS });
-  }
-
-  // 10. On-brand → Sonnet stream. Iterate the SDK's typed events directly,
-  //     extract text_delta payloads, push raw UTF-8 bytes to the client and
-  //     accumulate server-side for the argue-log.
+  // 9. Sonnet stream. Iterate the SDK's typed events directly,
+  //    extract text_delta payloads, push raw UTF-8 bytes to the client and
+  //    accumulate server-side for the argue-log.
   let stream;
   try {
     stream = client.messages.stream({
