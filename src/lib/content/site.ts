@@ -22,6 +22,7 @@ export const NAV: readonly NavItem[] = [
   { href: '/', label: 'Home', hideInMainNav: true },
   { href: '/fieldwork', label: 'Fieldwork' },
   { href: '/postcards', label: 'Postcards' },
+  { href: '/changed-my-mind', label: 'Changed my mind' },
   { href: '/now', label: 'Now' },
   { href: '/taste', label: 'Taste' },
   { href: '/argue', label: 'Argue' },

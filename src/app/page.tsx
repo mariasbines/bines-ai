@@ -2,8 +2,6 @@ import Link from 'next/link';
 import { BioLine } from '@/components/BioLine';
 import { FieldworkCard } from '@/components/FieldworkCard';
 import { PostcardCard } from '@/components/PostcardCard';
-import { LinkedInIcon } from '@/components/LinkedInIcon';
-import { SynapseDxMark } from '@/components/SynapseDxMark';
 import { getAllFieldwork } from '@/lib/content/fieldwork';
 import { getAllPostcards } from '@/lib/content/postcards';
 
@@ -16,29 +14,7 @@ export default async function Home() {
 
   return (
     <div className="space-y-16">
-      <div>
-        <BioLine />
-        <div className="mt-3 flex items-center gap-4" aria-label="External profiles">
-          <a
-            href="https://www.linkedin.com/in/maria-bines/"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Maria Bines on LinkedIn"
-            className="opacity-80 hover:opacity-100 transition-opacity duration-150 motion-reduce:transition-none"
-          >
-            <LinkedInIcon />
-          </a>
-          <a
-            href="https://synapsedx.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="SynapseDx"
-            className="opacity-80 hover:opacity-100 transition-opacity duration-150 motion-reduce:transition-none"
-          >
-            <SynapseDxMark />
-          </a>
-        </div>
-      </div>
+      <BioLine />
 
       {fieldwork.length > 0 ? (
         <section aria-label="Fieldwork in rotation" className="grid gap-8 sm:grid-cols-2">

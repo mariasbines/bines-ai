@@ -6,6 +6,8 @@ import { Nav } from './Nav';
 import { CurrentlyStrip } from './CurrentlyStrip';
 import { AntipatternsStrip } from './AntipatternsStrip';
 import { Footer } from './Footer';
+import { LinkedInIcon } from './LinkedInIcon';
+import { SynapseDxMark } from './SynapseDxMark';
 import { CURRENTLY_PLACEHOLDER, SITE_STATS_PLACEHOLDER } from '@/lib/content/site';
 import { getCurrentlyLine } from '@/lib/content/now';
 import { getSiteStats } from '@/lib/content/stats';
@@ -46,15 +48,40 @@ export async function PageShell({ children }: PageShellProps) {
       </a>
 
       <header className="border-b border-ink/12 px-6 sm:px-8 pt-6 pb-5">
-        <div className="flex items-center justify-between gap-6 flex-wrap mb-4">
-          <Link
-            href="/"
-            aria-label="bines.ai home"
-            className="flex items-center gap-3 text-ink hover:text-ink/80 transition-opacity duration-150 motion-reduce:transition-none"
-          >
-            <Stamp size={56} />
-            <Wordmark />
-          </Link>
+        <div className="flex items-start justify-between gap-6 flex-wrap mb-4">
+          <div className="flex flex-col gap-1.5">
+            <Link
+              href="/"
+              aria-label="bines.ai home"
+              className="flex items-center gap-3 text-ink hover:text-ink/80 transition-opacity duration-150 motion-reduce:transition-none"
+            >
+              <Stamp size={56} />
+              <Wordmark />
+            </Link>
+            <div
+              className="flex items-center gap-2 pl-[68px]"
+              aria-label="External profiles"
+            >
+              <a
+                href="https://www.linkedin.com/in/maria-bines/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Maria Bines on LinkedIn"
+                className="opacity-80 hover:opacity-100 transition-opacity duration-150 motion-reduce:transition-none"
+              >
+                <LinkedInIcon size={13} />
+              </a>
+              <a
+                href="https://synapsedx.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="SynapseDx"
+                className="opacity-80 hover:opacity-100 transition-opacity duration-150 motion-reduce:transition-none"
+              >
+                <SynapseDxMark size={13} />
+              </a>
+            </div>
+          </div>
           <Nav />
         </div>
         <CurrentlyStrip currently={currently} stats={currentlyStats} updated={updated} />
