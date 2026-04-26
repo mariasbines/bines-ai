@@ -46,6 +46,7 @@ const {
   mockMessagesStream,
   mockMessagesCreate,
   mockAppendArgueLog,
+  mockGetFieldworkBySlug,
   afterCallbacks,
   mockAfter,
 } = vi.hoisted(() => {
@@ -54,6 +55,7 @@ const {
     mockMessagesStream: vi.fn<(args: unknown) => unknown>(),
     mockMessagesCreate: vi.fn(),
     mockAppendArgueLog: vi.fn(),
+    mockGetFieldworkBySlug: vi.fn<(slug: string) => Promise<unknown>>(),
     afterCallbacks,
     mockAfter: vi.fn((cb: () => Promise<void> | void) => {
       afterCallbacks.push(cb);
@@ -84,6 +86,12 @@ vi.mock('next/server', async (importOriginal) => {
   return { ...mod, after: mockAfter };
 });
 
+// Story 003.002 — Fieldwork content lookup. Default: returns null (unknown
+// slug, no preface). Tests that exercise the preface path override per-spec.
+vi.mock('@/lib/content/fieldwork', () => ({
+  getFieldworkBySlug: mockGetFieldworkBySlug,
+}));
+
 import { __resetRatelimitForTests } from '@/lib/chat/rate-limit';
 
 const ORIG_KEY = process.env.ANTHROPIC_API_KEY;
@@ -99,6 +107,9 @@ beforeEach(() => {
   mockMessagesCreate.mockReset();
   mockAppendArgueLog.mockReset();
   mockAppendArgueLog.mockResolvedValue(undefined);
+  mockGetFieldworkBySlug.mockReset();
+  // Default: any slug resolves to null (unknown slug — no preface composed).
+  mockGetFieldworkBySlug.mockResolvedValue(null);
   afterCallbacks.length = 0;
   mockAfter.mockClear();
   // Salt is required for all tests except the dedicated "missing salt" one.
@@ -508,5 +519,174 @@ describe('POST /api/chat — conversation_id + from_slug threading (story 003.00
     expect(entry.refused).toBe(true);
     expect(entry.conversation_id).toBe(supplied);
     expect(entry.from_slug).toBe('fw-02');
+  });
+});
+
+// Phase B — story 003.002. ?from=<slug> capture + chat-route preface.
+// Validates the system-prompt composition behaviour and the slug-injection
+// regression.
+//
+// Preface anchor phrase (architecture-locked): "the visitor came here from
+// your piece". Used as the negative assertion for "no preface" tests.
+const PREFACE_ANCHOR = 'the visitor came here from your piece';
+
+function makeMockPiece(overrides: { title?: string; excerpt?: string } = {}): {
+  frontmatter: { title: string; excerpt: string; status: 'in-rotation' };
+  body: string;
+  filePath: string;
+} {
+  return {
+    frontmatter: {
+      status: 'in-rotation',
+      title: overrides.title ?? 'Brain swap',
+      excerpt:
+        overrides.excerpt ??
+        'we keep building memory tech and forgetting that memory is the whole point.',
+    },
+    body: 'lorem ipsum body',
+    filePath: '/test/fixture.mdx',
+  };
+}
+
+describe('POST /api/chat — from_slug preface (story 003.002)', () => {
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  it('does NOT compose a preface when from_slug is null (no lookup, no anchor in system prompt)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).not.toHaveBeenCalled();
+    const args = firstStreamCallArg();
+    expect(typeof args.system).toBe('string');
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+  });
+
+  it('composes the preface and prepends it to the system prompt when from_slug resolves to a piece', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    mockGetFieldworkBySlug.mockResolvedValueOnce(
+      makeMockPiece({ title: 'Brain swap', excerpt: 'memory is the whole point.' }),
+    );
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'fw-06-brain-swap',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).toHaveBeenCalledWith('fw-06-brain-swap');
+    const args = firstStreamCallArg();
+    const sys = args.system as string;
+    expect(sys).toContain('Brain swap');
+    expect(sys).toContain('memory is the whole point');
+    expect(sys).toContain(PREFACE_ANCHOR);
+    // The baseline SYSTEM_PROMPT is still present (preface PREPENDS, not replaces).
+    expect(sys).toContain('AI trained to argue');
+    // Preface comes BEFORE the baseline (prepended).
+    expect(sys.indexOf(PREFACE_ANCHOR)).toBeLessThan(sys.indexOf('AI trained to argue'));
+  });
+
+  it('skips the preface silently when getFieldworkBySlug returns null (unknown slug)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    mockGetFieldworkBySlug.mockResolvedValueOnce(null);
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'unknown-slug',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).toHaveBeenCalledWith('unknown-slug');
+    const args = firstStreamCallArg();
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+  });
+
+  it('skips the preface for a path-traversal-shaped slug (no fs touch beyond the lookup, no preface composed)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    // getFieldworkBySlug returns null for any slug not in frontmatter.
+    mockGetFieldworkBySlug.mockResolvedValueOnce(null);
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: '../../etc/passwd',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).toHaveBeenCalledWith('../../etc/passwd');
+    const args = firstStreamCallArg();
+    const sys = args.system as string;
+    expect(sys).not.toContain(PREFACE_ANCHOR);
+    // The visitor-controlled raw slug must NEVER appear in the system prompt.
+    expect(sys).not.toContain('../../etc/passwd');
+    expect(sys).not.toContain('etc/passwd');
+  });
+
+  it('treats an empty-string from_slug as null (no lookup, no preface)', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: '',
+    });
+    await bodyOf(res);
+
+    expect(mockGetFieldworkBySlug).not.toHaveBeenCalled();
+    const args = firstStreamCallArg();
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+  });
+
+  it('writes from_slug verbatim into the argue-log entry, even when the slug was unknown', async () => {
+    mockGetFieldworkBySlug.mockResolvedValueOnce(null);
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'unknown-but-attributed',
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.from_slug).toBe('unknown-but-attributed');
+  });
+
+  it('falls through with the baseline system prompt when getFieldworkBySlug throws (defensive)', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetFieldworkBySlug.mockRejectedValueOnce(new Error('content-validation regression'));
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'fw-something',
+    });
+    expect(res.status).toBe(200);
+    await bodyOf(res);
+
+    const args = firstStreamCallArg();
+    expect(args.system as string).not.toContain(PREFACE_ANCHOR);
+    expect(args.system as string).toContain('AI trained to argue');
+    expect(
+      errSpy.mock.calls.some((args) =>
+        String(args[0] ?? '').includes('piece-preface lookup failed'),
+      ),
+    ).toBe(true);
+    errSpy.mockRestore();
   });
 });

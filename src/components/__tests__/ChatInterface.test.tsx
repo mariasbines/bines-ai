@@ -28,11 +28,12 @@ beforeEach(() => {
 });
 
 // Hoist mocks so the vi.mock factories can reference them.
-const { mockPostChat, mockNewConversationId } = vi.hoisted(() => ({
+const { mockPostChat, mockNewConversationId, mockSearchParams } = vi.hoisted(() => ({
   mockPostChat: vi.fn<
     (messages: Messages, options: PostChatOptions) => Promise<{ ok: boolean }>
   >(),
   mockNewConversationId: vi.fn<() => string>(),
+  mockSearchParams: vi.fn<() => URLSearchParams>(),
 }));
 
 // Mock the chat client
@@ -46,6 +47,11 @@ vi.mock('@/lib/conversation/id', () => ({
   newConversationId: () => mockNewConversationId(),
 }));
 
+// Mock useSearchParams — Phase B story 003.002. Default: no params.
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => mockSearchParams(),
+}));
+
 import { ChatInterface } from '../ChatInterface';
 
 beforeEach(() => {
@@ -55,6 +61,9 @@ beforeEach(() => {
   // Deterministic counter so reuse vs new is observable.
   let n = 0;
   mockNewConversationId.mockImplementation(() => `mock-uuid-${++n}`);
+  // Default: empty URLSearchParams (no `?from=`).
+  mockSearchParams.mockReset();
+  mockSearchParams.mockReturnValue(new URLSearchParams(''));
 });
 
 describe('<ChatInterface>', () => {
@@ -113,7 +122,7 @@ describe('<ChatInterface> — conversation_id threading (story 003.001)', () => 
     expect(opts.conversation_id).toBe('mock-uuid-1');
   });
 
-  it('passes from_slug: null on every submit (Phase A placeholder)', async () => {
+  it('passes from_slug: null when there is no ?from= param (story 003.001 baseline)', async () => {
     render(<ChatInterface />);
     await submit('hi');
 
@@ -133,5 +142,50 @@ describe('<ChatInterface> — conversation_id threading (story 003.001)', () => 
     const id2 = mockPostChat.mock.calls[1][1].conversation_id;
     expect(id1).toBe('mock-uuid-1');
     expect(id2).toBe('mock-uuid-1');
+  });
+});
+
+describe('<ChatInterface> — ?from=<slug> capture (story 003.002)', () => {
+  it('threads from_slug into postChat when ?from=<slug> is present in the URL', async () => {
+    mockSearchParams.mockReturnValue(new URLSearchParams('from=fw-04-singularity-different-clothes'));
+    render(<ChatInterface />);
+    await submit('hi');
+
+    const opts = mockPostChat.mock.calls[0][1];
+    expect(opts.from_slug).toBe('fw-04-singularity-different-clothes');
+  });
+
+  it('passes from_slug: null when no ?from= param is present', async () => {
+    mockSearchParams.mockReturnValue(new URLSearchParams(''));
+    render(<ChatInterface />);
+    await submit('hi');
+
+    const opts = mockPostChat.mock.calls[0][1];
+    expect(opts.from_slug).toBeNull();
+  });
+
+  it('treats an empty ?from= value as null (no slug captured)', async () => {
+    mockSearchParams.mockReturnValue(new URLSearchParams('from='));
+    render(<ChatInterface />);
+    await submit('hi');
+
+    const opts = mockPostChat.mock.calls[0][1];
+    expect(opts.from_slug).toBeNull();
+  });
+
+  it('captures from_slug stickily — re-renders with a different ?from= do NOT re-tag', async () => {
+    mockSearchParams.mockReturnValue(new URLSearchParams('from=fw-original'));
+    const { rerender } = render(<ChatInterface />);
+    await submit('one');
+
+    // Simulate a route change (different ?from=) without unmounting the component.
+    mockSearchParams.mockReturnValue(new URLSearchParams('from=fw-pivoted'));
+    rerender(<ChatInterface />);
+    await submit('two');
+
+    // Both submits used the value captured on first render.
+    expect(mockPostChat).toHaveBeenCalledTimes(2);
+    expect(mockPostChat.mock.calls[0][1].from_slug).toBe('fw-original');
+    expect(mockPostChat.mock.calls[1][1].from_slug).toBe('fw-original');
   });
 });

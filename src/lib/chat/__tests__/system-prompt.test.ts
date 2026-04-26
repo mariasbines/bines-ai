@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { SYSTEM_PROMPT } from '../system-prompt';
+import { SYSTEM_PROMPT, buildPiecePreface } from '../system-prompt';
 import { FIELDWORK_01_BODY } from '../fieldwork-01';
+import type { Fieldwork, FieldworkFrontmatter } from '@/lib/content/types';
 
 describe('SYSTEM_PROMPT', () => {
   it('declares identity as "AI trained to argue in Maria\'s voice — NOT Maria"', () => {
@@ -110,5 +111,63 @@ describe('SYSTEM_PROMPT', () => {
       expect(SYSTEM_PROMPT).toMatch(/without lecturing|don't lecture/i);
     });
 
+  });
+});
+
+// Story 003.002 — piece-aware preface for `?from=<slug>` chats.
+// Locked draft per `03-architecture.md:248-253`. Voice-checked at architecture
+// phase; per-story sign-off deferred to Maria's dev-branch review.
+
+function makePiece(overrides: Partial<FieldworkFrontmatter> = {}): Fieldwork {
+  const base = {
+    status: 'in-rotation' as const,
+    id: 1,
+    slug: 'fw-test',
+    title: 'Brain swap',
+    published: '2026-01-01',
+    tags: ['memory'],
+    media: { readMinutes: 5 },
+    pushback: { count: 0 },
+    excerpt: 'we keep building memory tech and forgetting that memory is the whole point.',
+    ...overrides,
+  };
+  return {
+    frontmatter: base as FieldworkFrontmatter,
+    body: 'long body content here. lorem ipsum dolor sit amet. consectetur adipiscing elit. '.repeat(5),
+    filePath: '/test/fixture.mdx',
+  };
+}
+
+describe('buildPiecePreface (story 003.002)', () => {
+  it('returns a string containing both the piece title and the piece excerpt', () => {
+    const out = buildPiecePreface(makePiece());
+    expect(out).toContain('Brain swap');
+    expect(out).toContain('we keep building memory tech');
+  });
+
+  it('starts with a lowercase opener', () => {
+    const out = buildPiecePreface(makePiece());
+    expect(out[0]).toMatch(/[a-z]/);
+    // Specifically: the locked draft starts with "the visitor".
+    expect(out.startsWith('the visitor')).toBe(true);
+  });
+
+  it("contains the canonical instruction phrase \"let them. don't restate the piece\"", () => {
+    const out = buildPiecePreface(makePiece());
+    expect(out).toContain("let them. don't restate the piece");
+  });
+
+  it('falls back to a body slice when frontmatter excerpt is empty (defensive)', () => {
+    // Constructed test fixture — schema would normally reject an empty
+    // excerpt, but the function must not throw if encountered.
+    const piece = makePiece({ excerpt: '' as unknown as string });
+    const out = buildPiecePreface(piece);
+    expect(out.length).toBeGreaterThan(0);
+    // Body slice should produce some content from the body fixture.
+    expect(out).toContain('lorem ipsum');
+  });
+
+  it('does NOT throw when the piece frontmatter has no extra fields beyond the required base', () => {
+    expect(() => buildPiecePreface(makePiece())).not.toThrow();
   });
 });

@@ -1,6 +1,6 @@
 import { after } from 'next/server';
 import { getAnthropicClient, DEFAULT_MODEL, MAX_TOKENS } from '@/lib/chat/anthropic';
-import { SYSTEM_PROMPT } from '@/lib/chat/system-prompt';
+import { SYSTEM_PROMPT, buildPiecePreface } from '@/lib/chat/system-prompt';
 import { detectAgentBehaviour } from '@/lib/chat/agent-guard';
 import { getChatRatelimit, getChatDailyRatelimit } from '@/lib/chat/rate-limit';
 import { validateRequest } from '@/lib/chat/validate';
@@ -9,6 +9,7 @@ import { hashIp } from '@/lib/argue-log/hash';
 import { appendArgueLog } from '@/lib/argue-log/storage';
 import type { ArgueLogEntry, ArgueVerdict } from '@/lib/argue-log/schema';
 import { newConversationId } from '@/lib/conversation/id';
+import { getFieldworkBySlug } from '@/lib/content/fieldwork';
 
 /**
  * Sentinel verdict written to argue-log entries now that the Haiku pre-flight
@@ -22,7 +23,13 @@ const RETIRED_VERDICT: ArgueVerdict = {
   reasoning: 'haiku-retired',
 };
 
-export const runtime = 'edge';
+// Story 003.002 (pushback-v2): switched from `'edge'` to `'nodejs'` to enable
+// `getFieldworkBySlug()` at request time — that loader uses `node:fs`, which
+// is unavailable in Vercel's Edge Runtime. The Sonnet streaming path and all
+// existing Web Crypto / @vercel/blob / Anthropic SDK calls work identically
+// under Node. Cold-start delta (~100ms vs ~10ms) is negligible against an
+// 8s+ p99 streaming response.
+export const runtime = 'nodejs';
 
 const GOVERNED_BY_HEADER = { 'X-Governed-By': 'bines.ai' } as const;
 const STREAM_HEADERS = {
@@ -73,10 +80,13 @@ export async function POST(req: Request) {
 
   // Phase A — story 003.001. Server-side fallback mint protects against
   // legacy clients (a stale tab serving a pre-Phase-A bundle that omits
-  // conversation_id). `from_slug` defaults to null when omitted; story
-  // 003.002 wires the URL capture on the client side.
+  // conversation_id). `from_slug` defaults to null when omitted; Phase B
+  // story 003.002 captures the URL `?from=` on the client.
+  // Phase B — story 003.002. Empty-string `from_slug` (e.g. `?from=` with no
+  // value, or a deliberately blank body field) is normalised to null. The
+  // logical "explicit no-origin" signal is null; `''` carries no information.
   const conversation_id = v.conversation_id ?? newConversationId();
-  const from_slug = v.from_slug ?? null;
+  const from_slug = v.from_slug ? v.from_slug : null;
 
   const ip = getIp(req);
 
@@ -170,14 +180,39 @@ export async function POST(req: Request) {
   const preFlightMs = 0;
   const ipHash = await ipHashPromise;
 
-  // 9. Sonnet stream. Iterate the SDK's typed events directly,
-  //    extract text_delta payloads, push raw UTF-8 bytes to the client and
-  //    accumulate server-side for the argue-log.
+  // 9. Phase B — story 003.002. Piece-aware preface. When `from_slug` is
+  //    present and resolves to a Fieldwork piece, prepend the locked-draft
+  //    preface to the system prompt. The visitor-controlled slug is used
+  //    only as a Map-style lookup key — never interpolated into the prompt
+  //    (PB2-SEC-003). Unknown / path-traversal-shaped / malformed slugs
+  //    return null from getFieldworkBySlug and the preface is silently
+  //    skipped. The try/catch guards against unrelated MDX validation errors
+  //    elsewhere in the content directory crashing the chat.
+  let systemPrompt = SYSTEM_PROMPT;
+  if (from_slug !== null) {
+    try {
+      const piece = await getFieldworkBySlug(from_slug);
+      if (piece !== null) {
+        systemPrompt = `${buildPiecePreface(piece)}\n\n${SYSTEM_PROMPT}`;
+      }
+    } catch (err) {
+      console.error(
+        '[chat] piece-preface lookup failed:',
+        err instanceof Error ? err.name : 'unknown',
+      );
+      // Fall through with the baseline prompt — chat still works without
+      // piece-awareness if the content directory has a transient regression.
+    }
+  }
+
+  // 10. Sonnet stream. Iterate the SDK's typed events directly,
+  //     extract text_delta payloads, push raw UTF-8 bytes to the client and
+  //     accumulate server-side for the argue-log.
   let stream;
   try {
     stream = client.messages.stream({
       model: DEFAULT_MODEL,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages,
       max_tokens: MAX_TOKENS,
     });

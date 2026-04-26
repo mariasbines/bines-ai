@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { postChat } from '@/lib/chat/client';
@@ -17,6 +18,18 @@ function checkReducedMotion(): boolean {
 }
 
 export function ChatInterface() {
+  const searchParams = useSearchParams();
+  /**
+   * Phase B — story 003.002. Sticky `?from=<slug>` capture. Lazy initial-state
+   * read evaluates the param exactly once on first render; later route
+   * changes (visitor pivots to a different `?from=`) do NOT re-tag the
+   * conversation. Empty string is normalised to null.
+   */
+  const [fromSlug] = useState<string | null>(() => {
+    const raw = searchParams?.get('from') ?? null;
+    if (raw === null || raw === '') return null;
+    return raw;
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState<Status>('idle');
@@ -71,7 +84,7 @@ export function ChatInterface() {
     const result = await postChat(history, {
       signal: controller.signal,
       conversation_id,
-      from_slug: null, // Phase A placeholder — story 003.002 will wire ?from=<slug>
+      from_slug: fromSlug,
       onDelta: (text) => {
         if (reducedMotion) {
           buffer += text;
@@ -100,7 +113,7 @@ export function ChatInterface() {
     }
 
     abortRef.current = null;
-  }, [input, messages]);
+  }, [input, messages, fromSlug]);
 
   const handleAbort = useCallback(() => {
     abortRef.current?.abort();
