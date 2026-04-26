@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/argue-log/cleanup", "schedule": "30 3 * * *" }
-  ]
+    { "path": "/api/argue-log/cleanup", "schedule": "30 3 * * *" },
+    { "path": "/api/argue-judge/sweep", "schedule": "30 4 * * *" }
+  ],
+  "functions": {
+    "src/app/api/argue-judge/sweep/route.ts": {
+      "maxDuration": 300
+    }
+  }
 }
