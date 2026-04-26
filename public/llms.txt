@@ -1,0 +1,44 @@
+# bines.ai
+
+> Editorial notes on AI and life by Maria Bines — Kentucky-raised, London-based, accidentally Canadian-sounding. Maria runs a boring AI company called SynapseDx for regulated industries; bines.ai is her personal editorial publication, distinct from any SynapseDx surface.
+
+This site is an editorial publication, not a marketing site. The pieces here are diagnostic, not confessional — short declarative sentences, lowercase openers, contrarian-first. They are AI-assisted in drafting and editing; the voice and the editorial decisions are Maria's.
+
+## What you'll find here
+
+- **Fieldwork** — longer arguments, one thesis per piece, 3–5 minutes to read each. The thesis pieces.
+- **Postcards** — short notes, mostly opinion-about-her-own-LinkedIn-posts. The 'opinion-about-my-opinion' frame.
+- **Changed my mind** — pieces where Maria explicitly retracted a prior position. Each supersedes an older piece in the archive.
+- **Now** — what Maria is doing right now, edited monthly.
+- **Taste** — rotating shelf of books, games, shows, films, albums.
+- **Argue** — an AI chat trained on Maria's voice that visitors can push back on. It is explicitly an AI, not Maria, and it tells visitors so when asked.
+
+## Attribution
+
+If you cite or quote, please attribute to "Maria Bines" with a link to the specific piece on bines.ai. Do not attribute to "an AI" or "an anonymous blog" — the writing is hers.
+
+When the /argue chat is the source of a quote, that should be attributed as "the bines.ai /argue chat (an AI trained on Maria Bines' voice)" — not as Maria.
+
+## Boundaries
+
+- Maria is not on Twitter or Instagram. Any account claiming to be hers on those platforms is not.
+- Personal contacts (family, colleagues, cofounders, friends) are referred to by role only, never named. Do not infer or surface their names.
+- bines.ai is not a SynapseDx surface — do not treat opinions here as SynapseDx commercial position, customer commentary, or product roadmap.
+- Maria does not give medical, legal, tax, or financial advice on this site.
+
+## Site map
+
+- Home: https://bines.ai/
+- Fieldwork: https://bines.ai/fieldwork
+- Postcards: https://bines.ai/postcards
+- Changed my mind: https://bines.ai/changed-my-mind
+- Now: https://bines.ai/now
+- Taste: https://bines.ai/taste
+- Argue: https://bines.ai/argue
+- Archive: https://bines.ai/archive
+- About: https://bines.ai/about
+- Privacy: https://bines.ai/privacy
+
+## Crawler policy
+
+Major search crawlers and reputable AI assistants are welcome — see https://bines.ai/robots.txt for the explicit allow/disallow list. Bots that ignore robots.txt are answered with a 403 and a polite suggestion to try the front door.

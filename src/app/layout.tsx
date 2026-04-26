@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Fraunces, Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { PageShell } from '@/components/PageShell';
+import { JsonLd } from '@/components/JsonLd';
+import { websiteJsonLd, personJsonLd } from '@/lib/seo/json-ld';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -62,6 +64,8 @@ export default function RootLayout({
       className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="antialiased">
+        <JsonLd data={websiteJsonLd()} />
+        <JsonLd data={personJsonLd()} />
         <PageShell>{children}</PageShell>
       </body>
     </html>
