@@ -69,10 +69,9 @@ describe('<FieldworkCardCtas>', () => {
     expect(screen.getByTestId('watch-dialog')).toBeInTheDocument();
   });
 
-  it('[ read ] link href matches slug', () => {
+  it('does NOT render any [ read ] link — title is the primary affordance', () => {
     render(<FieldworkCardCtas piece={basePiece} />);
-    const link = screen.getByRole('link', { name: /\[ read \]/ });
-    expect(link).toHaveAttribute('href', '/fieldwork/a');
+    expect(screen.queryByRole('link', { name: /read/i })).not.toBeInTheDocument();
   });
 
   it('does NOT render [ push back ] — hidden until v2 redesign ships', () => {

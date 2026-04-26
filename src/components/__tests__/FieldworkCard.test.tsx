@@ -39,13 +39,10 @@ describe('<FieldworkCard>', () => {
     const link = screen.getByRole('link', { name: /The best thing/ });
     expect(link).toHaveAttribute('href', '/fieldwork/01-best-thing');
   });
-  it('renders [ read ] only when no testimonial — [ watch ] omitted, [ push back ] hidden until v2', () => {
+  it('renders no CTAs when there is no testimonial — title is the primary affordance', () => {
     render(<FieldworkCard piece={piece} />);
     expect(screen.queryByRole('button', { name: /watch/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /\[ read \]/ })).toHaveAttribute(
-      'href',
-      '/fieldwork/01-best-thing',
-    );
+    expect(screen.queryByRole('link', { name: /read/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /push back/i })).not.toBeInTheDocument();
   });
   it('sets --color-accent on the article root', () => {
