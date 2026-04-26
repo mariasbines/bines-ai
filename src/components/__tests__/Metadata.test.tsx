@@ -50,8 +50,11 @@ describe('<Metadata>', () => {
     render(<Metadata piece={mkPiece()} />);
     expect(screen.getByText('not yet')).toBeInTheDocument();
   });
-  it('joins tags with · separator', () => {
+  it('renders each tag as a link to /tag/<slug>', () => {
     render(<Metadata piece={mkPiece()} />);
-    expect(screen.getByText('memory · attention')).toBeInTheDocument();
+    const memoryLink = screen.getByRole('link', { name: 'memory' });
+    const attentionLink = screen.getByRole('link', { name: 'attention' });
+    expect(memoryLink).toHaveAttribute('href', '/tag/memory');
+    expect(attentionLink).toHaveAttribute('href', '/tag/attention');
   });
 });

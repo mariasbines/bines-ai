@@ -1,5 +1,7 @@
 import { format } from 'date-fns';
+import Link from 'next/link';
 import type { Fieldwork } from '@/lib/content/types';
+import { Fragment } from 'react';
 
 interface MetadataProps {
   piece: Fieldwork;
@@ -39,7 +41,23 @@ export function Metadata({ piece, className }: MetadataProps) {
       <dd>{mindCount === 0 ? 'not yet' : `${mindCount}`}</dd>
 
       <dt className="text-ink/60">tags</dt>
-      <dd>{tags.join(' · ')}</dd>
+      <dd>
+        {tags.map((tag, i) => (
+          <Fragment key={tag}>
+            {i > 0 ? (
+              <span aria-hidden="true" className="text-ink/30 mx-1">
+                ·
+              </span>
+            ) : null}
+            <Link
+              href={`/tag/${tag}`}
+              className="text-ink/85 hover:text-accent transition-colors motion-reduce:transition-none"
+            >
+              {tag}
+            </Link>
+          </Fragment>
+        ))}
+      </dd>
     </dl>
   );
 }

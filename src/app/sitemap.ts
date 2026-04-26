@@ -1,11 +1,16 @@
 import type { MetadataRoute } from 'next';
 import { getAllFieldwork } from '@/lib/content/fieldwork';
 import { getAllPostcards } from '@/lib/content/postcards';
+import { getAllTags } from '@/lib/content/tags';
 
 const SITE_URL = 'https://bines.ai';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [fieldwork, postcards] = await Promise.all([getAllFieldwork(), getAllPostcards()]);
+  const [fieldwork, postcards, tags] = await Promise.all([
+    getAllFieldwork(),
+    getAllPostcards(),
+    getAllTags(),
+  ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, changeFrequency: 'weekly', priority: 1 },
@@ -42,5 +47,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...fwUrls, ...cmmUrls, ...pcUrls];
+  const tagUrls: MetadataRoute.Sitemap = tags.map((slug) => ({
+    url: `${SITE_URL}/tag/${slug}`,
+    changeFrequency: 'weekly',
+    priority: 0.5,
+  }));
+
+  return [...staticRoutes, ...fwUrls, ...cmmUrls, ...pcUrls, ...tagUrls];
 }
