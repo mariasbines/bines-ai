@@ -8,6 +8,7 @@ import { matchEasterEgg, easterEggStream } from '@/lib/argue-filter/easter-egg';
 import { hashIp } from '@/lib/argue-log/hash';
 import { appendArgueLog } from '@/lib/argue-log/storage';
 import type { ArgueLogEntry, ArgueVerdict } from '@/lib/argue-log/schema';
+import { newConversationId } from '@/lib/conversation/id';
 
 /**
  * Sentinel verdict written to argue-log entries now that the Haiku pre-flight
@@ -69,6 +70,13 @@ export async function POST(req: Request) {
   const v = validateRequest(body);
   if (!v.ok) return errorResponse(v.status, v.error, v.category);
   const messages = v.messages;
+
+  // Phase A — story 003.001. Server-side fallback mint protects against
+  // legacy clients (a stale tab serving a pre-Phase-A bundle that omits
+  // conversation_id). `from_slug` defaults to null when omitted; story
+  // 003.002 wires the URL capture on the client side.
+  const conversation_id = v.conversation_id ?? newConversationId();
+  const from_slug = v.from_slug ?? null;
 
   const ip = getIp(req);
 
@@ -138,6 +146,8 @@ export async function POST(req: Request) {
       refused: true,
       model: '',
       latency_ms: { pre_flight: 0, stream: null },
+      conversation_id,
+      from_slug,
     };
     after(async () => {
       try {
@@ -203,6 +213,8 @@ export async function POST(req: Request) {
         pre_flight: preFlightMs,
         stream: Date.now() - t0 - preFlightMs,
       },
+      conversation_id,
+      from_slug,
     };
     after(async () => {
       try {

@@ -5,6 +5,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { postChat } from '@/lib/chat/client';
 import { errorMessageFor, type ChatErrorCode } from '@/lib/chat/error-messages';
+import { newConversationId } from '@/lib/conversation/id';
 
 type Message = { id: string; role: 'user' | 'assistant'; content: string };
 type Status = 'idle' | 'streaming' | 'error';
@@ -21,10 +22,22 @@ export function ChatInterface() {
   const [status, setStatus] = useState<Status>('idle');
   const [errorCode, setErrorCode] = useState<ChatErrorCode | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  /**
+   * Phase A — story 003.001. Stable conversation id minted lazily on first
+   * submit (NOT on mount — empty conversations don't need ids). Reused across
+   * every subsequent turn for the lifetime of this component instance; resets
+   * only on hard reload (unmount).
+   */
+  const conversationIdRef = useRef<string | null>(null);
 
   const handleSubmit = useCallback(async () => {
     const content = input.trim();
     if (!content) return;
+
+    if (conversationIdRef.current === null) {
+      conversationIdRef.current = newConversationId();
+    }
+    const conversation_id = conversationIdRef.current;
 
     const userMsg: Message = {
       id:
@@ -57,6 +70,8 @@ export function ChatInterface() {
 
     const result = await postChat(history, {
       signal: controller.signal,
+      conversation_id,
+      from_slug: null, // Phase A placeholder — story 003.002 will wire ?from=<slug>
       onDelta: (text) => {
         if (reducedMotion) {
           buffer += text;

@@ -66,4 +66,48 @@ describe('validateRequest', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.status).toBe(400);
   });
+
+  // Phase A additions (story 003.001).
+  it('accepts a legacy body without conversation_id / from_slug', () => {
+    const r = validateRequest({ messages: [{ role: 'user', content: 'hi' }] });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.conversation_id).toBeUndefined();
+      expect(r.from_slug).toBeUndefined();
+    }
+  });
+
+  it('accepts a body with both conversation_id (uuid) and from_slug (string)', () => {
+    const r = validateRequest({
+      messages: [{ role: 'user', content: 'hi' }],
+      conversation_id: '11111111-1111-4111-8111-111111111111',
+      from_slug: 'fw-01',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.conversation_id).toBe('11111111-1111-4111-8111-111111111111');
+      expect(r.from_slug).toBe('fw-01');
+    }
+  });
+
+  it('accepts from_slug: null (explicit no-origin)', () => {
+    const r = validateRequest({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: null,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.from_slug).toBeNull();
+  });
+
+  it('rejects malformed conversation_id with 400', () => {
+    const r = validateRequest({
+      messages: [{ role: 'user', content: 'hi' }],
+      conversation_id: 'not-a-uuid',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.status).toBe(400);
+      expect(r.category).toBe('input');
+    }
+  });
 });

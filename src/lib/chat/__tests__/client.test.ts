@@ -28,6 +28,25 @@ function mockFetchChunks(status: number, chunks: string[]): void {
   ) as unknown as typeof fetch;
 }
 
+/**
+ * Replace globalThis.fetch with a capturing stub returning a 200 stream.
+ * Returns a getter for the parsed JSON body of the captured request.
+ */
+function captureFetchBody(): { getBody: () => Record<string, unknown> | undefined } {
+  let captured: Record<string, unknown> | undefined;
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('ok'));
+      controller.close();
+    },
+  });
+  globalThis.fetch = vi.fn((_url: unknown, init?: RequestInit) => {
+    if (init?.body) captured = JSON.parse(init.body as string);
+    return Promise.resolve(new Response(stream, { status: 200 }));
+  }) as unknown as typeof fetch;
+  return { getBody: () => captured };
+}
+
 afterEach(() => {
   globalThis.fetch = ORIG_FETCH;
   vi.restoreAllMocks();
@@ -113,5 +132,41 @@ describe('postChat', () => {
     const r = await postChat([{ role: 'user', content: 'hi' }], { onDelta: () => {} });
     expect(r.ok).toBe(false);
     expect(r.errorCode).toBeUndefined();
+  });
+
+  // Phase A additions (story 003.001).
+  it('omits conversation_id and from_slug from the body when not supplied', async () => {
+    const cap = captureFetchBody();
+    await postChat([{ role: 'user', content: 'hi' }], { onDelta: () => {} });
+    const body = cap.getBody();
+    expect(body).toBeDefined();
+    expect(body!.messages).toBeDefined();
+    expect('conversation_id' in body!).toBe(false);
+    expect('from_slug' in body!).toBe(false);
+  });
+
+  it('threads conversation_id and from_slug into the body when supplied', async () => {
+    const cap = captureFetchBody();
+    await postChat([{ role: 'user', content: 'hi' }], {
+      onDelta: () => {},
+      conversation_id: '11111111-1111-4111-8111-111111111111',
+      from_slug: 'fw-01',
+    });
+    const body = cap.getBody();
+    expect(body).toBeDefined();
+    expect(body!.conversation_id).toBe('11111111-1111-4111-8111-111111111111');
+    expect(body!.from_slug).toBe('fw-01');
+  });
+
+  it('threads from_slug: null verbatim (not omitted)', async () => {
+    const cap = captureFetchBody();
+    await postChat([{ role: 'user', content: 'hi' }], {
+      onDelta: () => {},
+      from_slug: null,
+    });
+    const body = cap.getBody();
+    expect(body).toBeDefined();
+    expect('from_slug' in body!).toBe(true);
+    expect(body!.from_slug).toBeNull();
   });
 });

@@ -3,6 +3,20 @@ import type { ChatErrorCode } from './error-messages';
 export interface ChatClientOptions {
   signal?: AbortSignal;
   onDelta: (text: string) => void;
+  /**
+   * Phase A — story 003.001. Stable conversation id minted by `<ChatInterface>`
+   * lazily on first submit. When supplied, threaded into the request body so
+   * the server can correlate turns of the same chat. Omitted on legacy callers
+   * (server falls back to a freshly minted UUID).
+   */
+  conversation_id?: string;
+  /**
+   * Phase A — story 003.001. The Fieldwork piece slug the visitor arrived
+   * from (when they clicked `[ argue with this ]`). `null` is meaningful —
+   * "explicit no-origin" — distinct from `undefined` (field omitted entirely).
+   * 003.002 wires the URL capture; this story always passes `null`.
+   */
+  from_slug?: string | null;
 }
 
 export interface ChatClientResult {
@@ -21,12 +35,23 @@ export async function postChat(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
   options: ChatClientOptions,
 ): Promise<ChatClientResult> {
+  // Construct the body with the new optional fields when supplied. We
+  // distinguish `undefined` (omit entirely — preserves the legacy wire shape)
+  // from `null` (include verbatim — explicit no-origin signal).
+  const payload: Record<string, unknown> = { messages };
+  if (options.conversation_id !== undefined) {
+    payload.conversation_id = options.conversation_id;
+  }
+  if (options.from_slug !== undefined) {
+    payload.from_slug = options.from_slug;
+  }
+
   let response: Response;
   try {
     response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify(payload),
       signal: options.signal,
     });
   } catch (err) {

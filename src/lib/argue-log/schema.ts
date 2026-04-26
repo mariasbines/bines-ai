@@ -37,6 +37,13 @@ export type ArgueVerdict = z.infer<typeof ARGUE_VERDICT>;
  * One argue-log entry = one full /argue round-trip (user turn → assistant turn
  * or refusal). Written as a single JSONL line to argue-log/YYYY-MM-DD.jsonl.
  * `schema_version: 1` is a literal so v2 drift can be caught at parse-time.
+ *
+ * Phase A additions (story 003.001): `conversation_id` (UUID) threads turns of
+ * the same chat together; `from_slug` records the Fieldwork piece origin (when
+ * the visitor arrived via `[ argue with this ]`). Both fields are additive and
+ * optional — pre-Phase-A entries continue to parse. `from_slug` is nullable to
+ * distinguish "explicit no-origin" (e.g. direct `/argue` visit) from "field
+ * not present yet" (legacy log lines).
  */
 export const ARGUE_LOG_ENTRY = z.object({
   schema_version: z.literal(1),
@@ -52,5 +59,7 @@ export const ARGUE_LOG_ENTRY = z.object({
     pre_flight: z.number().int().nonnegative(),
     stream: z.number().int().nonnegative().nullable(),
   }),
+  conversation_id: z.string().uuid().optional(),
+  from_slug: z.string().nullable().optional(),
 });
 export type ArgueLogEntry = z.infer<typeof ARGUE_LOG_ENTRY>;

@@ -134,4 +134,39 @@ describe('ARGUE_LOG_ENTRY schema', () => {
     const bad = { ...validEntry(), salt_version: 'v2' };
     expect(() => ARGUE_LOG_ENTRY.parse(bad)).toThrow();
   });
+
+  // Phase A additions (story 003.001) — additive optional fields, schema_version unchanged.
+  it('round-trips a pre-Phase-A entry shape (no conversation_id / from_slug)', () => {
+    const e = validEntry(); // helper omits both new fields
+    const parsed = ARGUE_LOG_ENTRY.parse(e);
+    expect(parsed.conversation_id).toBeUndefined();
+    expect(parsed.from_slug).toBeUndefined();
+  });
+
+  it('round-trips a new entry shape with both conversation_id (uuid) and from_slug (string)', () => {
+    const e = {
+      ...validEntry(),
+      conversation_id: '11111111-1111-4111-8111-111111111111',
+      from_slug: 'fw-01-the-meeting-where-we-pretend',
+    };
+    const parsed = ARGUE_LOG_ENTRY.parse(e);
+    expect(parsed.conversation_id).toBe('11111111-1111-4111-8111-111111111111');
+    expect(parsed.from_slug).toBe('fw-01-the-meeting-where-we-pretend');
+  });
+
+  it('accepts from_slug: null (explicit no-origin)', () => {
+    const e = { ...validEntry(), from_slug: null };
+    const parsed = ARGUE_LOG_ENTRY.parse(e);
+    expect(parsed.from_slug).toBeNull();
+  });
+
+  it('rejects malformed conversation_id (non-uuid)', () => {
+    const bad = { ...validEntry(), conversation_id: 'not-a-uuid' };
+    expect(() => ARGUE_LOG_ENTRY.parse(bad)).toThrow();
+  });
+
+  it('rejects from_slug as a number', () => {
+    const bad = { ...validEntry(), from_slug: 42 as unknown as string };
+    expect(() => ARGUE_LOG_ENTRY.parse(bad)).toThrow();
+  });
 });

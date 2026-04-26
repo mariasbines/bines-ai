@@ -398,3 +398,115 @@ describe('POST /api/chat — post-Haiku-retirement', () => {
     });
   });
 });
+
+// Phase A — story 003.001. conversation_id + from_slug threading.
+// Server mints fallback when client omits; client value is honoured verbatim
+// when supplied; both fields land on the argue-log entry on every path
+// (streaming + easter-egg).
+const UUID_V4_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+describe('POST /api/chat — conversation_id + from_slug threading (story 003.001)', () => {
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  it('mints a server-side conversation_id (UUID v4) when the body omits it', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.conversation_id).toMatch(UUID_V4_RE);
+    expect(entry.from_slug).toBeNull();
+  });
+
+  it('uses a client-supplied conversation_id verbatim', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const supplied = '22222222-2222-4222-8222-222222222222';
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      conversation_id: supplied,
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.conversation_id).toBe(supplied);
+  });
+
+  it('threads from_slug onto the log entry when supplied', async () => {
+    mockMessagesStream.mockImplementationOnce(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      from_slug: 'fw-01-some-slug',
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.from_slug).toBe('fw-01-some-slug');
+  });
+
+  it('multiple sequential requests with the same conversation_id share it across log entries', async () => {
+    mockMessagesStream.mockImplementation(() =>
+      makeIterableStream(deltaEvents('x')),
+    );
+    const supplied = '33333333-3333-4333-8333-333333333333';
+
+    const res1 = await callRoute({
+      messages: [{ role: 'user', content: 'one' }],
+      conversation_id: supplied,
+    });
+    await bodyOf(res1);
+    await afterCallbacks[0]();
+
+    afterCallbacks.length = 0;
+    mockAfter.mockClear();
+
+    const res2 = await callRoute({
+      messages: [
+        { role: 'user', content: 'one' },
+        { role: 'assistant', content: 'reply' },
+        { role: 'user', content: 'two' },
+      ],
+      conversation_id: supplied,
+    });
+    await bodyOf(res2);
+    await afterCallbacks[0]();
+
+    expect(mockAppendArgueLog.mock.calls.length).toBe(2);
+    expect(mockAppendArgueLog.mock.calls[0][0].conversation_id).toBe(supplied);
+    expect(mockAppendArgueLog.mock.calls[1][0].conversation_id).toBe(supplied);
+  });
+
+  it('rejects a malformed conversation_id with 400 (no Sonnet call)', async () => {
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+      conversation_id: 'not-a-uuid',
+    });
+    expect(res.status).toBe(400);
+    expect(mockMessagesStream).not.toHaveBeenCalled();
+  });
+
+  it('threads conversation_id + from_slug onto easter-egg entries', async () => {
+    const supplied = '44444444-4444-4444-8444-444444444444';
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'brownie recipe' }],
+      conversation_id: supplied,
+      from_slug: 'fw-02',
+    });
+    await bodyOf(res);
+    await afterCallbacks[0]();
+    const entry = mockAppendArgueLog.mock.calls[0][0];
+    expect(entry.refused).toBe(true);
+    expect(entry.conversation_id).toBe(supplied);
+    expect(entry.from_slug).toBe('fw-02');
+  });
+});
