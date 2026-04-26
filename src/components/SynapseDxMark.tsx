@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface SynapseDxMarkProps {
   size?: number;
   className?: string;
@@ -6,16 +8,18 @@ interface SynapseDxMarkProps {
 
 /**
  * The synapses-network mark from `synapsedx-main/public/synapsedx-logo.svg`,
- * stripped of its wordmark and brand-cyan gradient. Renders in
- * `currentColor` so it inherits the parent's ink colour — bines.ai's design
- * rule forbids the SynapseDx palette here (project CLAUDE.md), but the
- * SHAPE is identifying enough on its own.
+ * with the brand cyan→blue gradient preserved. Wordmark stripped. The
+ * SynapseDx palette is otherwise forbidden on bines.ai (project CLAUDE.md),
+ * but the trademark logo is the deliberate exception — it's a credentials
+ * link, not site chrome.
  */
 export function SynapseDxMark({
   size = 22,
   className,
   ariaLabel = 'SynapseDx',
 }: SynapseDxMarkProps) {
+  const uid = useId();
+  const gradientId = `${uid}-grad`;
   return (
     <svg
       width={size}
@@ -26,8 +30,14 @@ export function SynapseDxMark({
       aria-label={ariaLabel}
       className={className}
     >
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00D4E6" />
+          <stop offset="100%" stopColor="#0099CC" />
+        </linearGradient>
+      </defs>
       <g
-        stroke="currentColor"
+        stroke={`url(#${gradientId})`}
         strokeWidth={2}
         strokeLinecap="round"
         fill="none"
@@ -38,7 +48,7 @@ export function SynapseDxMark({
         <line x1={30} y1={30} x2={42} y2={37.5} />
         <line x1={30} y1={30} x2={22.5} y2={46.5} />
       </g>
-      <g fill="currentColor">
+      <g fill={`url(#${gradientId})`}>
         <circle cx={30} cy={30} r={6} />
         <circle cx={18} cy={15} r={4.5} />
         <circle cx={42} cy={22.5} r={3.75} />

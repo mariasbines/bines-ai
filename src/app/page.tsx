@@ -24,7 +24,7 @@ export default async function Home() {
             target="_blank"
             rel="noopener noreferrer"
             title="Maria Bines on LinkedIn"
-            className="text-ink/45 hover:text-accent transition-colors motion-reduce:transition-none"
+            className="opacity-80 hover:opacity-100 transition-opacity duration-150 motion-reduce:transition-none"
           >
             <LinkedInIcon />
           </a>
@@ -33,7 +33,7 @@ export default async function Home() {
             target="_blank"
             rel="noopener noreferrer"
             title="SynapseDx"
-            className="text-ink/45 hover:text-accent transition-colors motion-reduce:transition-none"
+            className="opacity-80 hover:opacity-100 transition-opacity duration-150 motion-reduce:transition-none"
           >
             <SynapseDxMark />
           </a>

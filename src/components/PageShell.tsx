@@ -5,6 +5,7 @@ import { Wordmark } from './Wordmark';
 import { Nav } from './Nav';
 import { CurrentlyStrip } from './CurrentlyStrip';
 import { AntipatternsStrip } from './AntipatternsStrip';
+import { Footer } from './Footer';
 import { CURRENTLY_PLACEHOLDER, SITE_STATS_PLACEHOLDER } from '@/lib/content/site';
 import { getCurrentlyLine } from '@/lib/content/now';
 import { getSiteStats } from '@/lib/content/stats';
@@ -65,6 +66,7 @@ export async function PageShell({ children }: PageShellProps) {
 
       <footer className="border-t border-ink/12 px-6 sm:px-8 py-12 mt-24">
         <AntipatternsStrip />
+        <Footer />
       </footer>
     </div>
   );
