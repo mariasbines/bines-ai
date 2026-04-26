@@ -30,6 +30,12 @@ export async function getSiteStats(options: LoaderOptions = {}): Promise<SiteSta
   const changedMyMindCount = fw.filter(
     (p) => p.frontmatter.status === 'changed-my-mind',
   ).length;
+  // Strip count == /fieldwork visible count (in-rotation only). Retired and
+  // changed-my-mind pieces live at /archive and /changed-my-mind respectively
+  // and are surfaced through their own counters / nav entries.
+  const fieldworkCount = fw.filter(
+    (p) => p.frontmatter.status === 'in-rotation',
+  ).length;
 
   const candidates: string[] = [];
   if (now) candidates.push(now.frontmatter.updated);
@@ -42,7 +48,7 @@ export async function getSiteStats(options: LoaderOptions = {}): Promise<SiteSta
       : candidates.sort().reverse()[0];
 
   return {
-    fieldworkCount: fw.length,
+    fieldworkCount,
     postcardCount: pc.length,
     changedMyMindCount,
     updated: new Date(`${latestIso}T00:00:00Z`),

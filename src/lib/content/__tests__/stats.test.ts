@@ -54,11 +54,13 @@ describe('getSiteStats', () => {
     expect(out.changedMyMindCount).toBe(0);
     expect(out.updated.toISOString().startsWith('1970')).toBe(true);
   });
-  it('counts fieldwork pieces and changed-my-mind separately', async () => {
+  it('counts in-rotation fieldwork only; changed-my-mind tracked separately', async () => {
     await writeFw('1.mdx', 'a', 1, 'in-rotation', '2026-04-01');
     await writeFw('2.mdx', 'b', 2, 'changed-my-mind', '2026-03-01');
     const out = await getSiteStats({ contentRoot: tmp });
-    expect(out.fieldworkCount).toBe(2);
+    // fieldworkCount mirrors what /fieldwork renders (in-rotation only).
+    // The changed-my-mind piece is surfaced via its own counter / route.
+    expect(out.fieldworkCount).toBe(1);
     expect(out.changedMyMindCount).toBe(1);
   });
   it('derives updated from most recent publish', async () => {
