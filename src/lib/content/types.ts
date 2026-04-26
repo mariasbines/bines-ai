@@ -133,7 +133,7 @@ const TASTE_ITEM = z.object({
   by: z.string().optional(),
   link: z.string().url().optional(),
   note: z.string().optional(),
-  kind: z.enum(['book', 'essay', 'show', 'film', 'album', 'track', 'other']).optional(),
+  kind: z.enum(['book', 'essay', 'show', 'film', 'album', 'track', 'game', 'other']).optional(),
 });
 export type TasteItem = z.infer<typeof TASTE_ITEM>;
 
