@@ -52,4 +52,32 @@ describe('<ChangedMyMindArticle>', () => {
     render(<ChangedMyMindArticle piece={piece} />);
     expect(screen.getByText(/read the original/)).toBeInTheDocument();
   });
+
+  it('does NOT render a recantation video when media.recantation is unset', () => {
+    const { container } = render(<ChangedMyMindArticle piece={piece} />);
+    expect(container.querySelector('video')).toBeNull();
+  });
+
+  it('renders the recantation video when media.recantation is set', () => {
+    const withVideo: Fieldwork = {
+      ...piece,
+      frontmatter: {
+        ...piece.frontmatter,
+        media: {
+          ...piece.frontmatter.media,
+          recantation: {
+            src: '/media/fw99/recantation.mp4',
+            poster: '/media/fw99/recantation-poster.jpg',
+          },
+        },
+      } as Fieldwork['frontmatter'],
+    };
+    const { container } = render(<ChangedMyMindArticle piece={withVideo} />);
+    const video = container.querySelector('video');
+    expect(video).not.toBeNull();
+    expect(video).toHaveAttribute('poster', '/media/fw99/recantation-poster.jpg');
+    const source = container.querySelector('source');
+    expect(source).toHaveAttribute('src', '/media/fw99/recantation.mp4');
+    expect(screen.getByText(/the recantation/i)).toBeInTheDocument();
+  });
 });

@@ -29,6 +29,18 @@ const URL_OR_PATH = z.string().refine(
   'must be a same-origin path starting with "/" or a full http(s) URL',
 );
 
+/**
+ * Maria-to-camera recantation video — only meaningful on `changed-my-mind`
+ * pieces. Plays once, has audio, has user-controlled play/pause. The video
+ * is the recantation receipt, distinct from the silent auto-loop
+ * editorial-art `headerVideo` used by in-rotation Fieldwork pieces.
+ */
+const RECANTATION = z.object({
+  src: URL_OR_PATH,
+  poster: URL_OR_PATH,
+  captions: URL_OR_PATH.optional(),
+});
+
 const MEDIA = z.object({
   readMinutes: z.number().int().positive(),
   watchMinutes: z.number().int().positive().optional(),
@@ -37,6 +49,7 @@ const MEDIA = z.object({
   captions: URL_OR_PATH.optional(),
   testimonial: URL_OR_PATH.optional(),
   testimonialCaptions: URL_OR_PATH.optional(),
+  recantation: RECANTATION.optional(),
 });
 export type Media = z.infer<typeof MEDIA>;
 

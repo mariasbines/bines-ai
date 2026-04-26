@@ -29,8 +29,8 @@ export default async function ArchivePage() {
       <header className="mb-12">
         <h1 className="font-serif font-black text-5xl tracking-tight">Archive</h1>
         <p className="mt-3 font-serif text-base text-ink/70 italic leading-relaxed max-w-xl">
-          Organised by status, not chronology. Fieldwork that&apos;s been retired sits here with a
-          note on why. &quot;Changed my mind&quot; gets its own route.
+          Pieces I&apos;ve retired, evolved past, or changed my mind on — kept on the record so I
+          can&apos;t pretend they didn&apos;t happen.
         </p>
       </header>
 
@@ -41,24 +41,30 @@ export default async function ArchivePage() {
         </p>
       ) : (
         <div className="space-y-16">
-          <ArchiveSection
-            title="still right"
-            pieces={stillRight}
-            linkPattern="fieldwork"
-            emptyMessage="Nothing still right in the archive yet."
-          />
-          <ArchiveSection
-            title="evolved · refined"
-            pieces={evolved}
-            linkPattern="fieldwork"
-            emptyMessage="Nothing evolved yet."
-          />
-          <ArchiveSection
-            title="changed my mind"
-            pieces={changedMyMind}
-            linkPattern="changed-my-mind"
-            emptyMessage="Haven't changed my mind publicly yet — it'll be a whole thing when I do."
-          />
+          {stillRight.length > 0 ? (
+            <ArchiveSection
+              title="still right"
+              pieces={stillRight}
+              linkPattern="fieldwork"
+              emptyMessage=""
+            />
+          ) : null}
+          {evolved.length > 0 ? (
+            <ArchiveSection
+              title="evolved · refined"
+              pieces={evolved}
+              linkPattern="fieldwork"
+              emptyMessage=""
+            />
+          ) : null}
+          {changedMyMind.length > 0 ? (
+            <ArchiveSection
+              title="changed my mind"
+              pieces={changedMyMind}
+              linkPattern="changed-my-mind"
+              emptyMessage=""
+            />
+          ) : null}
         </div>
       )}
     </div>

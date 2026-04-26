@@ -1,6 +1,7 @@
 import type { Fieldwork } from '@/lib/content/types';
 import { accentFor, accentVar } from '@/lib/design/accent';
 import { MdxBody } from './MdxBody';
+import { RecantationVideo } from './RecantationVideo';
 
 interface ChangedMyMindArticleProps {
   piece: Fieldwork; // must be status === 'changed-my-mind'
@@ -10,8 +11,9 @@ export function ChangedMyMindArticle({ piece }: ChangedMyMindArticleProps) {
   if (piece.frontmatter.status !== 'changed-my-mind') {
     throw new Error('ChangedMyMindArticle given a non-changed-my-mind piece');
   }
-  const { title, supersedes, originalPosition, newPosition } = piece.frontmatter;
+  const { title, supersedes, originalPosition, newPosition, media } = piece.frontmatter;
   const accent = accentFor(piece);
+  const recantation = media.recantation;
 
   return (
     <article
@@ -29,6 +31,14 @@ export function ChangedMyMindArticle({ piece }: ChangedMyMindArticleProps) {
         <h1 className="font-serif font-black text-[clamp(2.125rem,5vw,3.375rem)] leading-[1.05] tracking-tight mb-10">
           {title}
         </h1>
+
+        {recantation ? (
+          <RecantationVideo
+            src={recantation.src}
+            poster={recantation.poster}
+            captions={recantation.captions}
+          />
+        ) : null}
 
         <div className="grid gap-6 sm:grid-cols-2 border-y border-ink/15 py-6 mb-10">
           <div>
