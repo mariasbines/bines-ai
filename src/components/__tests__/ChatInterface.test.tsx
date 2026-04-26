@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from '@testing-library/react';
 
 type Messages = Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -187,5 +187,180 @@ describe('<ChatInterface> — ?from=<slug> capture (story 003.002)', () => {
     expect(mockPostChat).toHaveBeenCalledTimes(2);
     expect(mockPostChat.mock.calls[0][1].from_slug).toBe('fw-original');
     expect(mockPostChat.mock.calls[1][1].from_slug).toBe('fw-original');
+  });
+});
+
+// Phase B — story 003.005. Chat-end signal: idle timer + pagehide + beforeunload
+// → navigator.sendBeacon. Fake timers required for the idle path.
+
+const sendBeaconMock = vi.fn<(url: string, body?: BodyInit | null) => boolean>(() => true);
+
+describe('<ChatInterface> — chat-end signal (story 003.005)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sendBeaconMock.mockClear();
+    Object.defineProperty(navigator, 'sendBeacon', {
+      writable: true,
+      configurable: true,
+      value: sendBeaconMock,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Fake-timer-aware submit helper. Standard `submit` uses
+   * `await Promise.resolve()` to flush microtasks; under fake timers that
+   * still works because `Promise.resolve()` is microtask-scheduled (not
+   * timer-scheduled). The mocked `postChat` resolves synchronously so the
+   * status flip back to 'idle' happens within the act() flush.
+   */
+  async function submitFake(text: string): Promise<void> {
+    const input = screen.getByLabelText('Your message') as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.click(screen.getByRole('button', { name: /push back/i }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  it('does NOT fire the beacon when no messages have been sent (conversation_id null)', () => {
+    render(<ChatInterface />);
+    vi.advanceTimersByTime(5 * 60 * 1000); // 5 min — well past the 2-min idle.
+    expect(sendBeaconMock).not.toHaveBeenCalled();
+  });
+
+  it('fires the beacon once after 2 minutes of idle following a submit', async () => {
+    render(<ChatInterface />);
+    await submitFake('hello');
+
+    expect(sendBeaconMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+    });
+
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+    const [url, body] = sendBeaconMock.mock.calls[0];
+    expect(url).toBe('/api/argue-judge/run');
+    // Body is a Blob — read its text and parse.
+    expect(body).toBeInstanceOf(Blob);
+    const blob = body as Blob;
+    const text = await blob.text();
+    const parsed = JSON.parse(text);
+    expect(parsed).toEqual({ conversation_id: 'mock-uuid-1' });
+  });
+
+  it('resets the idle timer on a subsequent submit (90s + submit + 90s = no fire yet)', async () => {
+    render(<ChatInterface />);
+    await submitFake('one');
+    await act(async () => {
+      vi.advanceTimersByTime(90 * 1000);
+    });
+    expect(sendBeaconMock).not.toHaveBeenCalled();
+
+    await submitFake('two');
+    await act(async () => {
+      vi.advanceTimersByTime(90 * 1000); // 90s after second submit; 30s short of 2 min.
+    });
+    expect(sendBeaconMock).not.toHaveBeenCalled();
+
+    // After another 30s (total 2 min from second submit) the timer fires.
+    await act(async () => {
+      vi.advanceTimersByTime(30 * 1000);
+    });
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires the beacon on `pagehide`', async () => {
+    render(<ChatInterface />);
+    await submitFake('hello');
+
+    fireEvent(window, new Event('pagehide'));
+
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+    const [url] = sendBeaconMock.mock.calls[0];
+    expect(url).toBe('/api/argue-judge/run');
+  });
+
+  it('fires the beacon on `beforeunload`', async () => {
+    render(<ChatInterface />);
+    await submitFake('hello');
+
+    fireEvent(window, new Event('beforeunload'));
+
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('debounce guard: pagehide + beforeunload + idle elapse fire exactly once', async () => {
+    render(<ChatInterface />);
+    await submitFake('hello');
+
+    fireEvent(window, new Event('pagehide'));
+    fireEvent(window, new Event('beforeunload'));
+    await act(async () => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+    });
+
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT fire the beacon when conversation_id is null (no submit, just events)', () => {
+    render(<ChatInterface />);
+    fireEvent(window, new Event('pagehide'));
+    fireEvent(window, new Event('beforeunload'));
+    expect(sendBeaconMock).not.toHaveBeenCalled();
+  });
+
+  it('cleans up listeners + timer on unmount (no leaked fires after)', async () => {
+    const { unmount } = render(<ChatInterface />);
+    await submitFake('hello');
+
+    unmount();
+
+    fireEvent(window, new Event('pagehide'));
+    fireEvent(window, new Event('beforeunload'));
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000);
+    });
+
+    expect(sendBeaconMock).not.toHaveBeenCalled();
+  });
+
+  it('does NOT throw when navigator.sendBeacon is undefined (graceful no-op)', async () => {
+    Object.defineProperty(navigator, 'sendBeacon', {
+      writable: true,
+      configurable: true,
+      value: undefined,
+    });
+    render(<ChatInterface />);
+    await submitFake('hello');
+
+    // Trigger via pagehide. Should not throw.
+    expect(() => fireEvent(window, new Event('pagehide'))).not.toThrow();
+  });
+
+  it('does NOT register a visibilitychange listener (AC-005 — only pagehide + beforeunload)', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    render(<ChatInterface />);
+    const events = addSpy.mock.calls.map((call) => call[0]);
+    expect(events).toContain('pagehide');
+    expect(events).toContain('beforeunload');
+    expect(events).not.toContain('visibilitychange');
+    addSpy.mockRestore();
+  });
+
+  it('fireChatEnd is fire-and-forget (no await needed by callers)', async () => {
+    render(<ChatInterface />);
+    await submitFake('hello');
+
+    // pagehide handler invocation is synchronous — sendBeacon is called
+    // before fireEvent returns.
+    fireEvent(window, new Event('pagehide'));
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+    // No awaits between dispatch and assertion.
   });
 });
