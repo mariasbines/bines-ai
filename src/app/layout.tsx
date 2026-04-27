@@ -32,7 +32,7 @@ const SITE_URL = 'https://bines.ai';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'bines.ai',
+    default: 'Maria Bines',
     template: '%s · bines.ai',
   },
   description:
