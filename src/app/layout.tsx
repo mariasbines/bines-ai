@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     siteName: 'Maria Bines',
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
   },
 };
 
