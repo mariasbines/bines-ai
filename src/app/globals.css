@@ -44,3 +44,24 @@ body {
 @utility border-accent {
   border-color: var(--color-accent);
 }
+
+/* The "currently →" arrow on the home strip cycles through the five jewel
+   accents — a small, tasteful sign of life on an otherwise type-only page.
+   Held still on each colour for the bulk of the cycle so the eye registers
+   the colour before it moves; transitions are short. */
+@keyframes accent-cycle {
+  0%, 18% { color: var(--color-emerald); }
+  20%, 38% { color: var(--color-sapphire); }
+  40%, 58% { color: var(--color-ruby); }
+  60%, 78% { color: var(--color-topaz); }
+  80%, 98% { color: var(--color-amethyst); }
+  100% { color: var(--color-emerald); }
+}
+.accent-cycle {
+  animation: accent-cycle 20s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .accent-cycle {
+    animation: none;
+  }
+}

@@ -36,7 +36,7 @@ export function CurrentlyStrip({ currently, stats, updated, className }: Current
     >
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-1">
         <span className="text-ink/60">currently</span>
-        <span className="text-ruby" aria-hidden="true">→</span>
+        <span className="accent-cycle" aria-hidden="true">→</span>
         <span>{currently}</span>
       </div>
       <div className="text-ink/60">
