@@ -32,8 +32,19 @@ export function ChatInterface() {
     if (raw === null || raw === '') return null;
     return raw;
   });
+  /**
+   * Phase C — piece-aware prefill. When the visitor lands via the
+   * [ argue with this ] CTA, the link supplies the piece title in `?t=`,
+   * which we drop into the input as `Pushing back on "<title>" — ` so the
+   * conversation opens with context. Read once on first render; later
+   * route changes do not re-prefill.
+   */
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState<string>(() => {
+    const title = searchParams?.get('t') ?? null;
+    if (title === null || title === '') return '';
+    return `Pushing back on "${title}" — `;
+  });
   const [status, setStatus] = useState<Status>('idle');
   const [errorCode, setErrorCode] = useState<ChatErrorCode | null>(null);
   const abortRef = useRef<AbortController | null>(null);
