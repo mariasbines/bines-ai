@@ -17,8 +17,11 @@ export function NowBlock({ now }: NowBlockProps) {
       style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
     >
       <header className="mb-10">
-        <h1 className="font-serif font-black text-5xl tracking-tight mb-4">Now</h1>
-        <p className="font-mono text-xs uppercase tracking-[0.14em] text-ink/60">
+        <h1 className="font-serif font-black text-5xl tracking-tight mb-3">Now</h1>
+        <p className="font-serif text-base text-ink/70 italic">
+          The longer version of the line that runs at the top of every page. Edited monthly.
+        </p>
+        <p className="mt-3 font-mono text-xs uppercase tracking-[0.14em] text-ink/60">
           last updated <time dateTime={updated}>{fmtDate(updated)}</time>
         </p>
       </header>
