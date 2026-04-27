@@ -4,7 +4,7 @@
  */
 
 export const BIO_LINE =
-  'Kentucky-raised, London-based, accidentally Canadian-sounding. I build AI for regulated industries by day and argue with it by night.' as const;
+  'Notes on what AI is actually like to live with, and more.' as const;
 
 export const SITE = {
   name: 'bines.ai',

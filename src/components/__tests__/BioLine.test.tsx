@@ -8,8 +8,8 @@ describe('<BioLine>', () => {
     render(<BioLine />);
     expect(screen.getByText(BIO_LINE)).toBeInTheDocument();
   });
-  it('references the Kentucky-Londoner-Canadian cadence', () => {
-    render(<BioLine />);
-    expect(screen.getByText(/Kentucky-raised.*London-based.*Canadian-sounding/)).toBeInTheDocument();
+  it('renders the bio as the only paragraph in the component', () => {
+    const { container } = render(<BioLine />);
+    expect(container.querySelectorAll('p')).toHaveLength(1);
   });
 });

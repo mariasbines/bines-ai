@@ -67,7 +67,7 @@ export function FieldworkArticle({ piece }: FieldworkArticleProps) {
         <MdxBody source={piece.body} />
       </div>
 
-      <FieldworkArticleFooter slug={slug} title={title} />
+      <FieldworkArticleFooter slug={slug} />
     </article>
   );
 }

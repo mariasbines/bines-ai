@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     template: '%s · bines.ai',
   },
   description:
-    'Kentucky-raised, London-based, accidentally Canadian-sounding. Fieldwork and postcards from someone who actually uses the AI she writes about.',
+    'Notes on what AI is actually like to live with, and more. Fieldwork and postcards from Maria Bines.',
   icons: {
     icon: [{ url: '/stamp.svg', type: 'image/svg+xml' }],
   },
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: SITE_URL,
-    siteName: 'bines.ai',
+    siteName: 'Maria Bines',
   },
   twitter: {
     card: 'summary_large_image',
