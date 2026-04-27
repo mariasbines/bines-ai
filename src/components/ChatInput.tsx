@@ -22,7 +22,14 @@ export function ChatInput({
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    ref.current?.focus();
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    // If the textarea was prefilled (piece-aware preface from /argue?t=…),
+    // park the cursor at the end so the visitor types their pushback after
+    // the prefill rather than overwriting it.
+    const len = el.value.length;
+    if (len > 0) el.setSelectionRange(len, len);
   }, []);
 
   return (
