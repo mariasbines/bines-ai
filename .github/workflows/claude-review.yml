@@ -1,0 +1,74 @@
+name: Claude PR review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review:
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-review')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch PR diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr diff ${{ github.event.pull_request.number }} > pr.diff
+
+      - name: Build Anthropic request
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python3 - <<'PY' > req.json
+          import json, os
+          system = open('.github/claude-review-prompt.md').read()
+          diff = open('pr.diff').read()[:80000]  # ~16-20k tokens, safe ceiling
+          user = (
+              f"PR title: {os.environ['PR_TITLE']}\n\n"
+              f"PR description:\n{os.environ.get('PR_BODY') or '(empty)'}\n\n"
+              f"Diff:\n```diff\n{diff}\n```"
+          )
+          body = {
+              "model": "claude-sonnet-4-6",
+              "max_tokens": 2048,
+              "system": system,
+              "messages": [{"role": "user", "content": user}],
+          }
+          print(json.dumps(body))
+          PY
+
+      - name: Call Anthropic API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          curl -sS https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d @req.json > resp.json
+          python3 - <<'PY' > review.md
+          import json, sys
+          d = json.load(open('resp.json'))
+          if 'content' not in d:
+              sys.exit(f"API error: {d}")
+          print(d['content'][0]['text'])
+          PY
+
+      - name: Post review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            printf '**Claude PR review** (advisory — Maria approves merges)\n\n'
+            cat review.md
+          } > comment.md
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
