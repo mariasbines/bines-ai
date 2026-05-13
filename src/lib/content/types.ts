@@ -117,6 +117,10 @@ export const POSTCARD_FRONTMATTER = z.object({
   published: z.iso.date(),
   tags: z.array(TAG).optional(),
   accent: ACCENT_TOKEN.optional(),
+  // Byline override. Absent / undefined → renders as "maria" (the default).
+  // Set to "claude" on the rare postcards written in the AI's own voice
+  // (see postcard 009 for the disclosure rule that motivates this).
+  author: z.enum(['maria', 'claude']).optional(),
 });
 export type PostcardFrontmatter = z.infer<typeof POSTCARD_FRONTMATTER>;
 

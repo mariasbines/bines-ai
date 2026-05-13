@@ -3,27 +3,37 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('@vercel/blob', () => ({
   list: vi.fn(),
   put: vi.fn(),
+  get: vi.fn(),
 }));
 
-import { list, put } from '@vercel/blob';
+import { list, put, get } from '@vercel/blob';
 import { appendPushBack } from '../storage';
 
 const listMock = vi.mocked(list);
 const putMock = vi.mocked(put);
+const getMock = vi.mocked(get);
 
 const ORIG_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-const ORIG_FETCH = globalThis.fetch;
+
+function getOk(body: string) {
+  return {
+    statusCode: 200,
+    stream: new Response(body).body,
+    headers: {},
+    blob: {},
+  } as never;
+}
 
 beforeEach(() => {
   listMock.mockReset();
   putMock.mockReset();
+  getMock.mockReset();
   process.env.BLOB_READ_WRITE_TOKEN = 'fake-token';
 });
 
 afterEach(() => {
   if (ORIG_TOKEN === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
   else process.env.BLOB_READ_WRITE_TOKEN = ORIG_TOKEN;
-  globalThis.fetch = ORIG_FETCH;
 });
 
 describe('appendPushBack', () => {
@@ -56,18 +66,19 @@ describe('appendPushBack', () => {
     listMock.mockResolvedValue({
       blobs: [{ url: 'https://blob.example/d.jsonl' }],
     } as never);
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response('{"slug":"prev","message":"p","name":"","timestamp":"T0"}\n')),
-    ) as unknown as typeof fetch;
+    getMock.mockResolvedValue(
+      getOk('{"slug":"prev","message":"p","name":"","timestamp":"T0"}\n'),
+    );
     putMock.mockResolvedValue(undefined as never);
     await appendPushBack(
       { slug: 'a', message: 'hello world!!', name: '', timestamp: 'T1' },
       { now: new Date('2026-04-22T00:00:00Z') },
     );
-    const [, body] = putMock.mock.calls[0];
+    const [, body, opts] = putMock.mock.calls[0];
     const lines = String(body).trim().split('\n');
     expect(lines).toHaveLength(2);
     expect(JSON.parse(lines[0]).slug).toBe('prev');
     expect(JSON.parse(lines[1]).slug).toBe('a');
+    expect(opts).toMatchObject({ access: 'private' });
   });
 });

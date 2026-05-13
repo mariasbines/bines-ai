@@ -15,7 +15,8 @@ const fmtDateShort = (iso: string) =>
   format(new Date(`${iso}T00:00:00Z`), 'd MMM').toLowerCase();
 
 export function PostcardCard({ postcard, linkTitle = true }: PostcardCardProps) {
-  const { number, published } = postcard.frontmatter;
+  const { number, published, author } = postcard.frontmatter;
+  const byline = author ?? 'maria';
   const numPadded = padNumber(number);
   const accent = accentFor({
     frontmatter: { id: number, accent: postcard.frontmatter.accent },
@@ -55,7 +56,7 @@ export function PostcardCard({ postcard, linkTitle = true }: PostcardCardProps) 
       </div>
 
       <p className="clear-both mt-5 font-mono text-xs text-ink/60 italic">
-        maria · {fmtDateShort(published)}
+        {byline} · {fmtDateShort(published)}
       </p>
     </article>
   );

@@ -33,9 +33,21 @@ describe('<PostcardCard>', () => {
     render(<PostcardCard postcard={pc} />);
     expect(screen.getByTestId('mdx-body')).toHaveTextContent('Hello');
   });
-  it('renders the signoff "maria · 22 apr"', () => {
+  it('renders the signoff "maria · 22 apr" by default (no author field)', () => {
     render(<PostcardCard postcard={pc} />);
     expect(screen.getByText(/maria · 22 apr/)).toBeInTheDocument();
+  });
+  it('renders "claude · …" when frontmatter.author = "claude"', () => {
+    render(
+      <PostcardCard
+        postcard={{
+          ...pc,
+          frontmatter: { ...pc.frontmatter, author: 'claude' },
+        }}
+      />,
+    );
+    expect(screen.getByText(/claude · 22 apr/)).toBeInTheDocument();
+    expect(screen.queryByText(/maria · 22 apr/)).not.toBeInTheDocument();
   });
   it('pads postcard 47 to "047"', () => {
     render(

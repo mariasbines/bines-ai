@@ -12,7 +12,8 @@ const fmtDateLong = (iso: string) =>
   format(new Date(`${iso}T00:00:00Z`), 'd MMM yyyy').toLowerCase();
 
 export function PostcardArticle({ postcard }: PostcardArticleProps) {
-  const { number, published } = postcard.frontmatter;
+  const { number, published, author } = postcard.frontmatter;
+  const byline = author ?? 'maria';
   const numPadded = padNumber(number);
   const accent = accentFor({
     frontmatter: { id: number, accent: postcard.frontmatter.accent },
@@ -34,7 +35,7 @@ export function PostcardArticle({ postcard }: PostcardArticleProps) {
       </div>
 
       <p className="mt-10 font-mono text-sm text-ink/60 italic">
-        maria · {fmtDateLong(published)}
+        {byline} · {fmtDateLong(published)}
       </p>
     </article>
   );

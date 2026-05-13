@@ -21,9 +21,20 @@ describe('<PostcardArticle>', () => {
     render(<PostcardArticle postcard={pc} />);
     expect(screen.getByText(/postcard #007/i)).toBeInTheDocument();
   });
-  it('renders long date signoff', () => {
+  it('renders long date signoff with maria byline by default', () => {
     render(<PostcardArticle postcard={pc} />);
     expect(screen.getByText(/maria · 22 apr 2026/)).toBeInTheDocument();
+  });
+  it('renders claude byline when frontmatter.author = "claude"', () => {
+    render(
+      <PostcardArticle
+        postcard={{
+          ...pc,
+          frontmatter: { ...pc.frontmatter, author: 'claude' },
+        }}
+      />,
+    );
+    expect(screen.getByText(/claude · 22 apr 2026/)).toBeInTheDocument();
   });
   it('wraps in <article>', () => {
     const { container } = render(<PostcardArticle postcard={pc} />);

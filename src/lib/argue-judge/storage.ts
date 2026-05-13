@@ -1,5 +1,5 @@
 import 'server-only';
-import { list, put } from '@vercel/blob';
+import { get, list, put } from '@vercel/blob';
 import { ARGUE_JUDGE_VERDICT, type ArgueJudgeVerdict } from './schema';
 import { isValidDayKey, dayKeyUtc } from '@/lib/argue-log/day';
 
@@ -50,12 +50,15 @@ export async function appendArgueJudge(
 
   let body = JSON.stringify(verdict) + '\n';
   if (match) {
-    const res = await fetch(match.url);
-    if (res.ok) body = (await res.text()) + body;
+    // Private store — `fetch(match.url)` returns 403. Use SDK `get()`.
+    const got = await get(filename, { access: 'private', token });
+    if (got && got.statusCode === 200) {
+      body = (await new Response(got.stream).text()) + body;
+    }
   }
 
   await put(filename, body, {
-    access: 'public',
+    access: 'private',
     contentType: 'application/x-ndjson',
     addRandomSuffix: false,
     token,
@@ -93,9 +96,10 @@ export async function readArgueJudgeDay(day: string): Promise<ArgueJudgeVerdict[
   const existing = await list({ prefix: filename, token });
   const match = existing.blobs.find((b) => b.pathname === filename);
   if (!match) return [];
-  const res = await fetch(match.url);
-  if (!res.ok) return [];
-  const text = await res.text();
+  // Private store — `fetch(match.url)` returns 403. Use SDK `get()`.
+  const got = await get(filename, { access: 'private', token });
+  if (!got || got.statusCode !== 200) return [];
+  const text = await new Response(got.stream).text();
   const lines = text.split('\n').filter((l) => l.length > 0);
   const verdicts: ArgueJudgeVerdict[] = [];
   for (const line of lines) {
