@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import type { PushbackEnrichment } from '@/lib/argue-judge/loader';
+
+// Re-export so consumers can import the enrichment type from a stable path
+// (`@/lib/content/types`) alongside the rest of the Fieldwork shape.
+export type { PushbackEnrichment } from '@/lib/argue-judge/loader';
 
 /** Deterministic five-jewel accent tokens from Palette A. */
 export const ACCENT_TOKEN = z.enum([
@@ -53,6 +58,17 @@ const MEDIA = z.object({
 });
 export type Media = z.infer<typeof MEDIA>;
 
+/**
+ * Frontmatter `pushback` field.
+ *
+ * Story 003.007 (pushback-v2 Phase C) **demoted** this field: the runtime
+ * pushback summary on each `<Fieldwork>` instance is derived from
+ * `getJudgesForSlug` (see `src/lib/argue-judge/loader.ts`) and surfaced as
+ * a top-level `pushback: PushbackEnrichment` on the `Fieldwork` interface
+ * below. The frontmatter field is preserved for forward-compat against
+ * existing MDX files and round-trip tests — nothing in the v2 render path
+ * consults it.
+ */
 const PUSHBACK = z.object({
   count: z.number().int().nonnegative(),
   landed: z.number().int().nonnegative().optional(),
@@ -105,10 +121,17 @@ export const FIELDWORK_FRONTMATTER = z.discriminatedUnion('status', [
 export type FieldworkFrontmatter = z.infer<typeof FIELDWORK_FRONTMATTER>;
 export type FieldworkStatus = FieldworkFrontmatter['status'];
 
+/**
+ * Runtime `Fieldwork` shape. The `pushback` field is **loader-authoritative**
+ * from story 003.007 onward — it's derived from the argue-judges corpus at
+ * build time and merged in by `getAllFieldwork`. Always present; default is
+ * `{ count: 0, landed: 0, excerpts: [] }` when enrichment is unavailable.
+ */
 export interface Fieldwork {
   frontmatter: FieldworkFrontmatter;
   body: string;
   filePath: string;
+  pushback: PushbackEnrichment;
 }
 
 /** Postcard frontmatter — simple numbered vanity-card style. */

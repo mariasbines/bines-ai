@@ -4,6 +4,7 @@ import { Metadata } from './Metadata';
 import { MdxBody } from './MdxBody';
 import { VideoLoop } from './VideoLoop';
 import { FieldworkArticleFooter } from './FieldworkArticleFooter';
+import { PushbackSummary } from './PushbackSummary';
 
 interface FieldworkArticleProps {
   piece: Fieldwork;
@@ -66,6 +67,12 @@ export function FieldworkArticle({ piece }: FieldworkArticleProps) {
       <div className="prose-fieldwork font-serif text-lg leading-relaxed max-w-none [&_p]:my-5 [&_strong]:font-bold">
         <MdxBody source={piece.body} />
       </div>
+
+      <PushbackSummary
+        count={piece.pushback.count}
+        landed={piece.pushback.landed}
+        excerpts={piece.pushback.excerpts}
+      />
 
       <FieldworkArticleFooter slug={slug} title={title} />
     </article>
