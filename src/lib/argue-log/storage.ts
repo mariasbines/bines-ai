@@ -1,5 +1,5 @@
 import 'server-only';
-import { list, put, del } from '@vercel/blob';
+import { get, list, put, del } from '@vercel/blob';
 import { ARGUE_LOG_ENTRY, type ArgueLogEntry } from './schema';
 import { isValidDayKey, dayKeyUtc } from './day';
 
@@ -49,12 +49,16 @@ export async function appendArgueLog(
 
   let body = JSON.stringify(entry) + '\n';
   if (match) {
-    const res = await fetch(match.url);
-    if (res.ok) body = (await res.text()) + body;
+    // Private store — `fetch(match.url)` returns 403. Use SDK `get()`
+    // which signs the request with the token.
+    const got = await get(filename, { access: 'private', token });
+    if (got && got.statusCode === 200) {
+      body = (await new Response(got.stream).text()) + body;
+    }
   }
 
   await put(filename, body, {
-    access: 'public',
+    access: 'private',
     contentType: 'application/x-ndjson',
     addRandomSuffix: false,
     token,
@@ -94,9 +98,10 @@ export async function readArgueLogDay(day: string): Promise<ArgueLogEntry[]> {
   // L-002: exact pathname match.
   const match = existing.blobs.find((b) => b.pathname === filename);
   if (!match) return [];
-  const res = await fetch(match.url);
-  if (!res.ok) return [];
-  const text = await res.text();
+  // Private store — `fetch(match.url)` returns 403. Use SDK `get()`.
+  const got = await get(filename, { access: 'private', token });
+  if (!got || got.statusCode !== 200) return [];
+  const text = await new Response(got.stream).text();
   const lines = text.split('\n').filter((l) => l.length > 0);
   const entries: ArgueLogEntry[] = [];
   for (const line of lines) {

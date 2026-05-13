@@ -3,9 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('@vercel/blob', () => ({
   list: vi.fn(),
   put: vi.fn(),
+  get: vi.fn(),
 }));
 
-import { list, put } from '@vercel/blob';
+import { list, put, get } from '@vercel/blob';
 import {
   appendArgueJudge,
   listArgueJudgeDays,
@@ -17,9 +18,21 @@ import type { ArgueJudgeVerdict } from '../schema';
 
 const listMock = vi.mocked(list);
 const putMock = vi.mocked(put);
+const getMock = vi.mocked(get);
 
 const ORIG_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-const ORIG_FETCH = globalThis.fetch;
+
+function getOk(body: string) {
+  return {
+    statusCode: 200,
+    stream: new Response(body).body,
+    headers: {},
+    blob: {},
+  } as never;
+}
+function getMissing() {
+  return null as never;
+}
 
 function validVerdict(overrides: Partial<ArgueJudgeVerdict> = {}): ArgueJudgeVerdict {
   return {
@@ -78,13 +91,13 @@ function spyConsole(): {
 beforeEach(() => {
   listMock.mockReset();
   putMock.mockReset();
+  getMock.mockReset();
   process.env.BLOB_READ_WRITE_TOKEN = 'fake-token';
 });
 
 afterEach(() => {
   if (ORIG_TOKEN === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
   else process.env.BLOB_READ_WRITE_TOKEN = ORIG_TOKEN;
-  globalThis.fetch = ORIG_FETCH;
 });
 
 describe('appendArgueJudge', () => {
@@ -115,7 +128,7 @@ describe('appendArgueJudge', () => {
     expect(filename).toBe('argue-judges/2026-04-25.jsonl');
     expect(String(body).trim().split('\n')).toHaveLength(1);
     expect(opts).toMatchObject({
-      access: 'public',
+      access: 'private',
       contentType: 'application/x-ndjson',
       addRandomSuffix: false,
       allowOverwrite: true,
@@ -135,9 +148,7 @@ describe('appendArgueJudge', () => {
     const previousLine =
       JSON.stringify(validVerdict({ conversation_id: '22222222-2222-4222-8222-222222222222' })) +
       '\n';
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response(previousLine, { status: 200 })),
-    ) as unknown as typeof fetch;
+    getMock.mockResolvedValue(getOk(previousLine));
     putMock.mockResolvedValue(undefined as never);
 
     await appendArgueJudge(validVerdict(), {
@@ -218,9 +229,7 @@ describe('readArgueJudgeDay', () => {
       '\n' +
       JSON.stringify(validVerdict({ conversation_id: '22222222-2222-4222-8222-222222222222' })) +
       '\n';
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response(lines, { status: 200 })),
-    ) as unknown as typeof fetch;
+    getMock.mockResolvedValue(getOk(lines));
 
     const out = await readArgueJudgeDay('2026-04-25');
     expect(out).toHaveLength(2);
@@ -237,9 +246,7 @@ describe('readArgueJudgeDay', () => {
       'not-json-at-all\n' +
       JSON.stringify({ schema_version: 99, broken: true }) +
       '\n';
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response(text, { status: 200 })),
-    ) as unknown as typeof fetch;
+    getMock.mockResolvedValue(getOk(text));
 
     const out = await readArgueJudgeDay('2026-04-25');
     expect(out).toHaveLength(1);
@@ -282,10 +289,10 @@ describe('readAllArgueJudges', () => {
       JSON.stringify(validVerdict({ conversation_id: '33333333-3333-4333-8333-333333333333' })) +
       '\n';
     let n = 0;
-    globalThis.fetch = vi.fn(() => {
+    getMock.mockImplementation(async () => {
       const body = ++n === 1 ? day1 : day2;
-      return Promise.resolve(new Response(body, { status: 200 }));
-    }) as unknown as typeof fetch;
+      return getOk(body);
+    });
 
     const out = await readAllArgueJudges();
     expect(out).toHaveLength(3);
@@ -315,9 +322,9 @@ describe('findVerdictByConversationId', () => {
     listMock.mockResolvedValueOnce({ blobs: [] } as never);
 
     const todayLine = JSON.stringify(validVerdict({ conversation_id: id })) + '\n';
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response(todayLine, { status: 200 })),
-    ) as unknown as typeof fetch;
+    // First get() call returns today; second (yesterday) is missing.
+    getMock.mockResolvedValueOnce(getOk(todayLine));
+    getMock.mockResolvedValueOnce(getMissing());
 
     const out = await findVerdictByConversationId(id, {
       now: new Date('2026-04-25T12:00:00Z'),
@@ -343,10 +350,10 @@ describe('findVerdictByConversationId', () => {
       JSON.stringify(validVerdict({ conversation_id: id, judged_at: '2026-04-24T11:00:00.000Z', excerpt: 'older' })) +
       '\n';
     let n = 0;
-    globalThis.fetch = vi.fn(() => {
+    getMock.mockImplementation(async () => {
       const body = ++n === 1 ? todayLine : yesterdayLine;
-      return Promise.resolve(new Response(body, { status: 200 }));
-    }) as unknown as typeof fetch;
+      return getOk(body);
+    });
 
     const out = await findVerdictByConversationId(id, {
       now: new Date('2026-04-25T12:00:00Z'),
@@ -380,9 +387,7 @@ describe('URL-leak guard (AC-012)', () => {
       listMock.mockResolvedValueOnce({
         blobs: [{ pathname: 'argue-judges/2026-04-25.jsonl', url }],
       } as never);
-      globalThis.fetch = vi.fn(() =>
-        Promise.resolve(new Response(JSON.stringify(validVerdict()) + '\n', { status: 200 })),
-      ) as unknown as typeof fetch;
+      getMock.mockResolvedValueOnce(getOk(JSON.stringify(validVerdict()) + '\n'));
       putMock.mockResolvedValueOnce(undefined as never);
       await appendArgueJudge(validVerdict(), { now: new Date('2026-04-25T09:00:00Z') });
 
