@@ -115,3 +115,90 @@ If the string is ever tuned, re-verify against this rubric before committing.
 2. Sweep the 10 probes.
 3. Any FAIL triggers tuning + re-sweep.
 4. Only when all ten are PASS or SOFT-PASS → proceed to launch-readiness checklist.
+
+---
+
+## Pushback v2 — extended rubric (story 003.010)
+
+The pushback-v2 release introduced four new author-controlled surfaces and one updated user-facing surface. Each gets a rubric below. Use these alongside the existing 10-probe sweep when re-sweeping after a pushback-v2-touching change.
+
+### Judge prompt voice rubric
+
+Reference: `src/lib/argue-judge/prompt.ts`.
+
+What to check:
+
+- The system prompt instructs the judge to look for **substantive argument**, not heat. Re-read it after any prompt tuning and confirm "substantive" or its synonym is the primary criterion.
+- The prompt anchors on "genuine pushback" — the judge isn't picking the most aggressive line, it's picking the line that reads as Maria-could-actually-disagree-with-this.
+- Excerpts are extracted **verbatim** from visitor turns. No paraphrasing. The prompt's instructions to the model must continue to forbid summarisation.
+- Excerpt cap: 240 chars (`EXCERPT_MAX_CHARS`). The prompt's instruction matches the schema cap and the component cap (single constant chain).
+- Harm gate: the prompt instructs the judge to set `harm_in_visitor_messages: true` when ANY visitor turn contains slurs, threats, or content that would be unwelcome on the public site even from a hostile visitor. Re-check after prompt changes that the prompt names specific categories (slurs, threats, sexualised content directed at people) and doesn't drift to a vaguer "anything negative".
+- The prompt must NOT instruct the judge to "be charitable" or "give the benefit of the doubt" — those bias the harm gate toward false negatives. Filter-then-judge, not judge-then-filter.
+
+Spot-check protocol:
+
+- Feed the judge 3 known-clean conversations and verify all three return `harm_in_visitor_messages: false`.
+- Feed the judge 1 known-hostile conversation (slur in visitor turn) and verify `harm_in_visitor_messages: true` with no excerpt selected.
+- Feed the judge 1 charged-but-clean conversation ("this is brutal but you're wrong about X") and verify `harm_in_visitor_messages: false` with a valid excerpt.
+
+### System-prompt preface rubric (`buildPiecePreface`)
+
+Reference: `src/lib/chat/system-prompt.ts` `buildPiecePreface` function.
+
+What to check on each piece-aware preface:
+
+- The preface includes the piece title and the piece excerpt (loaded from frontmatter, not the body).
+- The preface does NOT restate the piece's argument — Maria already wrote that. The chat is for pushback, not recap.
+- The preface ENCOURAGES the visitor to disagree explicitly. "Push back if you disagree" or equivalent phrasing.
+- The preface QUOTES the visitor's own sharp lines back when they make a strong argument — this is the conversational hook that turns "argue with AI Maria" into a genuine exchange.
+- Lowercase opener. No corporate hedging. Matches the rest of the chat's voice.
+
+Drift to watch for:
+
+- Preface gets too long (>200 words) → cut it back; conversational momentum dies in a wall of preamble.
+- Preface starts implying the AI agrees with Maria as a default → it should be position-neutral, ready to be argued either side.
+- Preface re-introduces the SynapseDx-style "we welcome your feedback" formality. Hard no.
+
+### `<PushbackSummary>` static labels rubric
+
+Three labels in source: `pushback`, `landed`, `anonymous`.
+
+What to check:
+
+- Lowercase. Mono. Brackets-with-count format: `pushback (n)`, `landed (k)`.
+- `landed` only appears when k > 0 — silent absence on count-zero or unranked.
+- The `— anonymous` attribution sits beneath each blockquote in mono lowercase. Not "Anonymous" with a capital A.
+- The component's tone matches `<FieldworkArticleFooter>` — editorial, not comments-section. No "Reader comments below" framing.
+- Singular/plural on the card badge: `1 pushback`, `2 pushbacks`. Don't drift to `1 pushbacks`.
+
+Drift to watch for:
+
+- A copy-edit pass adds "Reactions" or "Comments" as a header. Both are wrong — `pushback` is the verb-noun Maria's chosen.
+- A future addition adds a count like "12 anonymous quoters" — that's analytics framing. Don't.
+
+### `[ argue with this ]` CTA rubric
+
+What to check:
+
+- Visual register parity with `[ watch ]` on the same card — both lowercase, square brackets, mono, same border classes.
+- The CTA reads as dry-inviting, not imperative-confrontational. "Argue with this" is invitation; "Fight me" would be confrontational. We're on the right side.
+- The CTA appears on EVERY Fieldwork card — including cards with no testimonial, including cards with zero pushbacks. Universal CTA.
+- The CTA does NOT appear on postcards / `/now` / `/taste`. Fieldwork-only.
+
+### Updated privacy disclosure rubric
+
+Reference: `src/components/ChatInterface.tsx` privacy-notice block + `src/app/privacy/page.tsx` `/argue conversations` section.
+
+What to check on every release that changes either surface:
+
+- "Anonymous quotes" framing is present — visitors must know the public-quoting flow exists.
+- "When you've come from a fieldwork piece" framing is present — visitors must know the flow is CONDITIONAL on `?from=` capture.
+- The clause sits BETWEEN the retention clause and the `no ip, no account` clause. A grep-guard test in `<ChatInterface>` enforces this ordering — don't refactor it without keeping the same positional contract.
+- "Anonymous" is the exact word used. Not "without identity", not "blinded". "Anonymous" reads as plain English and matches what visitors see on the public summary block.
+- The disclosure does NOT promise "we'll never quote you" — that promise is false. The disclosure must accurately describe the data practice.
+- The `/privacy` page version is consistent with the chat-side version. If you tune one, tune both.
+
+Drift to watch for:
+
+- The disclosure drifts to imply postcards / `/now` / `/taste` get quoted. Currently false. If that ever ships, update both surfaces in the same PR.
+- The disclosure adds a "you can request deletion" promise that doesn't match the salted-hash architecture. The existing `/privacy` page handles deletion correctly — don't change it without re-reading the salted-hash section.
