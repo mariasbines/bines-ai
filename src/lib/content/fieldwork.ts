@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { getJudgesForSlug, type PushbackEnrichment } from '@/lib/argue-judge/loader';
 import { ContentValidationError, listMdxFiles, readMdxFile } from './mdx';
 import { contentPaths, DEFAULT_CONTENT_ROOT } from './paths';
 import { FIELDWORK_FRONTMATTER, type Fieldwork, type FieldworkStatus } from './types';
@@ -10,9 +11,19 @@ interface LoaderOptions {
   status?: FieldworkStatus;
 }
 
+const EMPTY_ENRICHMENT: PushbackEnrichment = { count: 0, landed: 0, excerpts: [] };
+
 /**
  * Read every `.mdx` under `content/fieldwork`, validate, return sorted
  * descending by `published`. Empty dir = [].
+ *
+ * Each piece is enriched at build time with the judge-derived pushback
+ * summary via `getJudgesForSlug`. The `.catch()` makes any enrichment
+ * failure non-fatal: build always completes with the empty enrichment
+ * shape (count=0, landed=0, excerpts=[]). `getJudgesForSlug` already
+ * catches its own internal errors and returns null; the outer `.catch()`
+ * is belt-and-braces against module-load failures or unexpected throws
+ * outside of `getJudgesForSlug`'s try/catch (PB2-OPS-004).
  */
 export async function getAllFieldwork(options: LoaderOptions = {}): Promise<Fieldwork[]> {
   const { fieldworkDir } = contentPaths(options.contentRoot ?? DEFAULT_CONTENT_ROOT);
@@ -22,9 +33,26 @@ export async function getAllFieldwork(options: LoaderOptions = {}): Promise<Fiel
     files.map((f) => readMdxFile(f, FIELDWORK_FRONTMATTER)),
   );
 
+  const enriched: Fieldwork[] = await Promise.all(
+    pieces.map(async (p) => {
+      const enrichment = await getJudgesForSlug(p.frontmatter.slug).catch(
+        (err: unknown) => {
+          console.error(
+            '[fieldwork] judge enrichment failed for',
+            p.frontmatter.slug,
+            '—',
+            err instanceof Error ? err.name : 'unknown',
+          );
+          return null;
+        },
+      );
+      return { ...p, pushback: enrichment ?? EMPTY_ENRICHMENT };
+    }),
+  );
+
   const filtered = options.status
-    ? pieces.filter((p) => p.frontmatter.status === options.status)
-    : pieces;
+    ? enriched.filter((p) => p.frontmatter.status === options.status)
+    : enriched;
 
   return filtered.sort((a, b) =>
     b.frontmatter.published.localeCompare(a.frontmatter.published),

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { FieldworkCard } from '../FieldworkCard';
 import type { Fieldwork } from '@/lib/content/types';
 
@@ -18,6 +20,7 @@ const piece: Fieldwork = {
   } as Fieldwork['frontmatter'],
   body: '',
   filePath: '',
+  pushback: { count: 0, landed: 0, excerpts: [] },
 };
 
 describe('<FieldworkCard>', () => {
@@ -59,5 +62,58 @@ describe('<FieldworkCard>', () => {
     };
     render(<FieldworkCard piece={retired} />);
     expect(screen.getByText('retired · still right')).toBeInTheDocument();
+  });
+});
+
+// Story 003.007 — pushback count badge.
+describe('<FieldworkCard> — pushback count badge (story 003.007)', () => {
+  it('(a) renders NO badge when pushback.count === 0', () => {
+    render(<FieldworkCard piece={piece} />);
+    expect(screen.queryByTestId('pushback-badge')).not.toBeInTheDocument();
+    // And there should be no text matching "pushback" + a number.
+    expect(screen.queryByText(/^\d+ pushback/)).not.toBeInTheDocument();
+  });
+
+  it('(b) renders "1 pushback" (singular) when count === 1', () => {
+    const one: Fieldwork = {
+      ...piece,
+      pushback: { count: 1, landed: 0, excerpts: [] },
+    };
+    render(<FieldworkCard piece={one} />);
+    const badge = screen.getByTestId('pushback-badge');
+    expect(badge).toBeInTheDocument();
+    expect(badge.textContent).toBe('1 pushback');
+  });
+
+  it('(c) renders "5 pushbacks" (plural) when count === 5', () => {
+    const many: Fieldwork = {
+      ...piece,
+      pushback: { count: 5, landed: 2, excerpts: ['a', 'b', 'c'] },
+    };
+    render(<FieldworkCard piece={many} />);
+    const badge = screen.getByTestId('pushback-badge');
+    expect(badge).toBeInTheDocument();
+    expect(badge.textContent).toBe('5 pushbacks');
+  });
+
+  it('(d) badge has accent class applied (inherits jewel-tone)', () => {
+    const one: Fieldwork = {
+      ...piece,
+      pushback: { count: 2, landed: 0, excerpts: [] },
+    };
+    render(<FieldworkCard piece={one} />);
+    const badge = screen.getByTestId('pushback-badge');
+    expect(badge.className).toContain('text-accent');
+  });
+
+  it('(e) component source contains no SynapseDx palette hex values', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/FieldworkCard.tsx'),
+      'utf8',
+    );
+    const forbidden = ['#0A0F1A', '#00D4AA', '#F26B38', '#0EA5E9'];
+    for (const hex of forbidden) {
+      expect(source.toUpperCase()).not.toContain(hex.toUpperCase());
+    }
   });
 });

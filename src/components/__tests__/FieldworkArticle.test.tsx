@@ -30,6 +30,7 @@ const basePiece: Fieldwork = {
   } as Fieldwork['frontmatter'],
   body: 'Body content',
   filePath: '',
+  pushback: { count: 0, landed: 0, excerpts: [] },
 };
 
 describe('<FieldworkArticle>', () => {
@@ -81,5 +82,49 @@ describe('<FieldworkArticle>', () => {
   it('renders the MDX body via MdxBody', () => {
     render(<FieldworkArticle piece={basePiece} />);
     expect(screen.getByTestId('mdx-body')).toHaveTextContent('Body content');
+  });
+});
+
+// Story 003.007 — PushbackSummary integration.
+describe('<FieldworkArticle> — <PushbackSummary> integration (story 003.007)', () => {
+  it('renders the pushback summary when piece.pushback.count > 0', () => {
+    const withPushback: Fieldwork = {
+      ...basePiece,
+      pushback: { count: 2, landed: 1, excerpts: ['a quiet but sharp line.'] },
+    };
+    render(<FieldworkArticle piece={withPushback} />);
+    expect(screen.getByLabelText('Pushback summary')).toBeInTheDocument();
+    expect(screen.getByText('pushback (2)')).toBeInTheDocument();
+    expect(screen.getByText('landed (1)')).toBeInTheDocument();
+    expect(screen.getByText('a quiet but sharp line.')).toBeInTheDocument();
+  });
+
+  it('does not render the pushback summary when piece.pushback.count === 0', () => {
+    render(<FieldworkArticle piece={basePiece} />);
+    expect(screen.queryByLabelText('Pushback summary')).not.toBeInTheDocument();
+  });
+
+  it('renders <PushbackSummary> between <MdxBody> and the article footer (DOM order)', () => {
+    const withPushback: Fieldwork = {
+      ...basePiece,
+      pushback: { count: 1, landed: 0, excerpts: ['line one'] },
+    };
+    const { container } = render(<FieldworkArticle piece={withPushback} />);
+
+    const body = container.querySelector('[data-testid="mdx-body"]');
+    const summary = container.querySelector('[aria-label="Pushback summary"]');
+    const footerLink = screen.getByRole('link', { name: /argue with this/i });
+
+    expect(body).toBeTruthy();
+    expect(summary).toBeTruthy();
+    expect(footerLink).toBeTruthy();
+
+    // body precedes summary; summary precedes footer link.
+    expect(
+      body!.compareDocumentPosition(summary!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      summary!.compareDocumentPosition(footerLink) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

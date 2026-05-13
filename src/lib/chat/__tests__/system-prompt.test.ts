@@ -135,6 +135,7 @@ function makePiece(overrides: Partial<FieldworkFrontmatter> = {}): Fieldwork {
     frontmatter: base as FieldworkFrontmatter,
     body: 'long body content here. lorem ipsum dolor sit amet. consectetur adipiscing elit. '.repeat(5),
     filePath: '/test/fixture.mdx',
+    pushback: { count: 0, landed: 0, excerpts: [] },
   };
 }
 

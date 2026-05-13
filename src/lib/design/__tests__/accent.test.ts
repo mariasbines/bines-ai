@@ -18,6 +18,7 @@ function mkPiece(id: number, accent?: Fieldwork['frontmatter']['accent']): Field
     } as Fieldwork['frontmatter'],
     body: '',
     filePath: '',
+    pushback: { count: 0, landed: 0, excerpts: [] },
   };
 }
 

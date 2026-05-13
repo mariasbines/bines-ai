@@ -27,6 +27,7 @@ const basePiece: Fieldwork = {
   } as Fieldwork['frontmatter'],
   body: '',
   filePath: '',
+  pushback: { count: 0, landed: 0, excerpts: [] },
 };
 
 describe('<FieldworkCardCtas>', () => {
@@ -74,8 +75,95 @@ describe('<FieldworkCardCtas>', () => {
     expect(screen.queryByRole('link', { name: /read/i })).not.toBeInTheDocument();
   });
 
-  it('does NOT render [ push back ] — hidden until v2 redesign ships', () => {
+  it('does NOT render [ push back ] — replaced by [ argue with this ] in v2', () => {
     render(<FieldworkCardCtas piece={basePiece} />);
-    expect(screen.queryByRole('button', { name: /push back/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/push back/i)).not.toBeInTheDocument();
+  });
+});
+
+// Story 003.008 — the visible "[ argue with this ]" CTA.
+describe('<FieldworkCardCtas> — [ argue with this ] CTA (story 003.008)', () => {
+  it('(a) renders the link on every card — even when no testimonial', () => {
+    render(<FieldworkCardCtas piece={basePiece} />);
+    expect(screen.getByRole('link', { name: /argue with this/i })).toBeInTheDocument();
+  });
+
+  it('renders the link on cards with a testimonial too', () => {
+    const withVideo: Fieldwork = {
+      ...basePiece,
+      frontmatter: {
+        ...basePiece.frontmatter,
+        media: {
+          readMinutes: 5,
+          testimonial: 'https://example/t.mp4',
+          posterFrame: 'https://example/p.jpg',
+        },
+      } as Fieldwork['frontmatter'],
+    };
+    render(<FieldworkCardCtas piece={withVideo} />);
+    expect(screen.getByRole('link', { name: /argue with this/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /watch/i })).toBeInTheDocument();
+  });
+
+  it('(a) href matches /argue?from=<slug> for the piece', () => {
+    const piece: Fieldwork = {
+      ...basePiece,
+      frontmatter: {
+        ...basePiece.frontmatter,
+        slug: '04-singularity-different-clothes',
+      } as Fieldwork['frontmatter'],
+    };
+    render(<FieldworkCardCtas piece={piece} />);
+    const link = screen.getByRole('link', { name: /argue with this/i });
+    expect(link).toHaveAttribute('href', '/argue?from=04-singularity-different-clothes');
+  });
+
+  it('(b) link text content is exactly "[ argue with this ]"', () => {
+    render(<FieldworkCardCtas piece={basePiece} />);
+    const link = screen.getByRole('link', { name: /argue with this/i });
+    expect(link.textContent).toBe('[ argue with this ]');
+  });
+
+  it('(c) link shares border / hover classes with the sibling [ watch ] button', () => {
+    // Intentionally tight class-string assertion: visual-register parity is the
+    // PB2-BRD-004 mitigation point. If Tailwind classes change, update component
+    // and test together.
+    const withVideo: Fieldwork = {
+      ...basePiece,
+      frontmatter: {
+        ...basePiece.frontmatter,
+        media: {
+          readMinutes: 5,
+          testimonial: 'https://example/t.mp4',
+          posterFrame: 'https://example/p.jpg',
+        },
+      } as Fieldwork['frontmatter'],
+    };
+    render(<FieldworkCardCtas piece={withVideo} />);
+    const link = screen.getByRole('link', { name: /argue with this/i });
+    const watchBtn = screen.getByRole('button', { name: /watch/i });
+    for (const cls of [
+      'border',
+      'border-ink/20',
+      'text-ink/80',
+      'hover:text-accent',
+      'hover:border-accent',
+      'transition-colors',
+      'motion-reduce:transition-none',
+    ]) {
+      expect(link.className).toContain(cls);
+      expect(watchBtn.className).toContain(cls);
+    }
+  });
+
+  it('(d) the rendered DOM contains NO "[ push back ]" text anywhere (regression guard)', () => {
+    const { container } = render(<FieldworkCardCtas piece={basePiece} />);
+    expect(container.textContent).not.toMatch(/push back/i);
+  });
+
+  it('(e) link has motion-reduce:transition-none class', () => {
+    render(<FieldworkCardCtas piece={basePiece} />);
+    const link = screen.getByRole('link', { name: /argue with this/i });
+    expect(link.className).toContain('motion-reduce:transition-none');
   });
 });

@@ -1,7 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+
+// Mock the judge enrichment loader before importing the module under test.
+// Default behaviour: returns null (no enrichment) — matches the "no judges
+// yet" baseline so existing tests are unaffected. Individual tests in the
+// new pushback-enrichment describe block override the resolved value.
+const { mockGetJudgesForSlug } = vi.hoisted(() => ({
+  mockGetJudgesForSlug: vi.fn(),
+}));
+
+vi.mock('@/lib/argue-judge/loader', () => ({
+  getJudgesForSlug: (slug: string) => mockGetJudgesForSlug(slug),
+}));
+
 import {
   getAllFieldwork,
   getFieldworkBySlug,
@@ -16,6 +29,11 @@ let tmp: string;
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'bines-fw-'));
   await fs.mkdir(path.join(tmp, 'fieldwork'));
+  mockGetJudgesForSlug.mockReset();
+  // Default: enrichment returns null (loader convention for "no data /
+  // error suppressed"). The loader handles this by substituting the empty
+  // shape.
+  mockGetJudgesForSlug.mockResolvedValue(null);
 });
 afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
@@ -118,6 +136,74 @@ describe('malformed frontmatter', () => {
   });
 });
 
+// Story 003.007 — getJudgesForSlug enrichment. Verifies the loader merges
+// judge-derived data into each returned piece's `pushback` field, the
+// loader is authoritative over frontmatter, and enrichment failures are
+// non-fatal.
+describe('getAllFieldwork — pushback enrichment (story 003.007)', () => {
+  it('(a) merges enrichment shape into pushback when getJudgesForSlug returns data', async () => {
+    mockGetJudgesForSlug.mockResolvedValue({
+      count: 4,
+      landed: 1,
+      excerpts: ['line one', 'line two', 'line three'],
+    });
+    await writeFw('a.mdx', { ...BASE, slug: 'a' });
+    const [piece] = await getAllFieldwork({ contentRoot: tmp });
+    expect(piece.pushback).toEqual({
+      count: 4,
+      landed: 1,
+      excerpts: ['line one', 'line two', 'line three'],
+    });
+    expect(mockGetJudgesForSlug).toHaveBeenCalledWith('a');
+  });
+
+  it('(b) defaults to empty enrichment when getJudgesForSlug returns null', async () => {
+    mockGetJudgesForSlug.mockResolvedValue(null);
+    await writeFw('a.mdx', { ...BASE, slug: 'a' });
+    const [piece] = await getAllFieldwork({ contentRoot: tmp });
+    expect(piece.pushback).toEqual({ count: 0, landed: 0, excerpts: [] });
+  });
+
+  it('(c) caught: getJudgesForSlug throws → empty enrichment, no throw escapes', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetJudgesForSlug.mockRejectedValue(new Error('blob unreachable'));
+    await writeFw('a.mdx', { ...BASE, slug: 'a' });
+
+    const result = await getAllFieldwork({ contentRoot: tmp });
+    expect(result).toHaveLength(1);
+    expect(result[0].pushback).toEqual({ count: 0, landed: 0, excerpts: [] });
+    expect(
+      errSpy.mock.calls.some((args) =>
+        String(args[0] ?? '').includes('judge enrichment failed'),
+      ),
+    ).toBe(true);
+    errSpy.mockRestore();
+  });
+
+  it('(d) loader is authoritative: frontmatter pushback.count is overridden by enrichment', async () => {
+    // Frontmatter says count: 5, enrichment says count: 2 — enrichment wins.
+    mockGetJudgesForSlug.mockResolvedValue({ count: 2, landed: 0, excerpts: ['from judges'] });
+    await writeFw('a.mdx', { ...BASE, slug: 'a', pushback: { count: 5 } });
+    const [piece] = await getAllFieldwork({ contentRoot: tmp });
+    // The frontmatter Zod field still says 5 — but the runtime pushback
+    // shape is the loader's. v2 consumers read piece.pushback, not
+    // piece.frontmatter.pushback.
+    expect(piece.frontmatter.pushback.count).toBe(5);
+    expect(piece.pushback.count).toBe(2);
+    expect(piece.pushback.excerpts).toEqual(['from judges']);
+  });
+
+  it('calls getJudgesForSlug once per piece (no over-fetching)', async () => {
+    await writeFw('a.mdx', { ...BASE, id: 1, slug: 'a' });
+    await writeFw('b.mdx', { ...BASE, id: 2, slug: 'b' });
+    await writeFw('c.mdx', { ...BASE, id: 3, slug: 'c' });
+    await getAllFieldwork({ contentRoot: tmp });
+    expect(mockGetJudgesForSlug).toHaveBeenCalledTimes(3);
+    const slugsRequested = mockGetJudgesForSlug.mock.calls.map((c) => c[0]).sort();
+    expect(slugsRequested).toEqual(['a', 'b', 'c']);
+  });
+});
+
 function makePiece(extras: {
   slug: string;
   status: Fieldwork['frontmatter']['status'];
@@ -135,7 +221,7 @@ function makePiece(extras: {
     excerpt: 'e',
     ...extras,
   } as Fieldwork['frontmatter'];
-  return { frontmatter: base, body: '', filePath: `/tmp/${extras.slug}.mdx` };
+  return { frontmatter: base, body: '', filePath: `/tmp/${extras.slug}.mdx`, pushback: { count: 0, landed: 0, excerpts: [] } };
 }
 
 describe('validateChangedMyMindReferences', () => {

@@ -26,18 +26,27 @@ export function FieldworkCard({ piece }: FieldworkCardProps) {
           ? 'retired · evolved'
           : 'changed my mind';
   const idPadded = id.toString().padStart(2, '0');
+  // Loader-authoritative pushback count (story 003.007). Renders a small
+  // accent-tinted badge in the top strip when there's at least one verdict.
+  const pushbackCount = piece.pushback.count;
 
   return (
     <article
       className="bg-paper-2 border border-ink/20 rounded-sm px-8 py-8 sm:px-10 sm:py-10 shadow-[0_1px_0_rgba(26,24,20,0.06)] border-t-[6px] border-t-accent motion-safe:transition-all motion-safe:duration-200 hover:-translate-y-1 hover:shadow-lg"
       style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
     >
-      <div className="font-mono text-xs uppercase tracking-[0.14em] text-ink/60 mb-4">
+      <div className="font-mono text-xs uppercase tracking-[0.14em] text-ink/60 mb-4 flex flex-wrap items-center gap-x-2">
         <span className="text-accent font-bold">fieldwork {idPadded}</span>
-        <span className="mx-2 text-ink/30" aria-hidden="true">
-          ·
-        </span>
+        <span className="text-ink/30" aria-hidden="true">·</span>
         <span>{statusLabel}</span>
+        {pushbackCount > 0 ? (
+          <>
+            <span className="text-ink/30" aria-hidden="true">·</span>
+            <span className="text-accent" data-testid="pushback-badge">
+              {pushbackCount} pushback{pushbackCount === 1 ? '' : 's'}
+            </span>
+          </>
+        ) : null}
       </div>
 
       <h2 className="font-serif font-black text-3xl sm:text-4xl leading-[1.1] tracking-tight mb-6 break-words">

@@ -27,6 +27,7 @@ const piece: Fieldwork = {
   } as Fieldwork['frontmatter'],
   body: 'Body',
   filePath: '',
+  pushback: { count: 0, landed: 0, excerpts: [] },
 };
 
 describe('<ChangedMyMindArticle>', () => {

@@ -19,6 +19,7 @@ function mkPiece(slug: string, extras: Partial<Fieldwork['frontmatter']> = {}): 
     } as Fieldwork['frontmatter'],
     body: '',
     filePath: '',
+    pushback: { count: 0, landed: 0, excerpts: [] },
   };
 }
 

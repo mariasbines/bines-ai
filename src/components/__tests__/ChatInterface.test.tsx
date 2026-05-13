@@ -83,6 +83,36 @@ describe('<ChatInterface>', () => {
     expect(screen.getByText(/no ip, no account/i)).toBeInTheDocument();
   });
 
+  // Story 003.010 — privacy disclosure update.
+  it('renders the v2 public-quoting clause (story 003.010)', () => {
+    render(<ChatInterface />);
+    expect(
+      screen.getByText(/anonymous quotes on that piece/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/when you've come from a fieldwork piece/i),
+    ).toBeInTheDocument();
+  });
+
+  it('positions the v2 public-quoting clause between the retention and ip-account fragments (003.010 grep guard)', () => {
+    render(<ChatInterface />);
+    // The new disclosure shape is: "...how the chat is used. when you've come
+    // from a fieldwork piece, parts of substantive arguments may surface as
+    // anonymous quotes on that piece. no ip, no account — just the
+    // conversation."
+    //
+    // The pre-v2 shape went straight from "...how the chat is used." to
+    // "no ip, no account..." with NO clause between. This test fails if a
+    // future commit regresses the clause out of the middle.
+    const text = document.body.textContent ?? '';
+    const usedIdx = text.indexOf('how the chat is used.');
+    const anonIdx = text.indexOf('anonymous quotes on that piece');
+    const ipIdx = text.indexOf('no ip, no account');
+    expect(usedIdx).toBeGreaterThan(-1);
+    expect(anonIdx).toBeGreaterThan(usedIdx);
+    expect(ipIdx).toBeGreaterThan(anonIdx);
+  });
+
   it('renders the chat input with submit button', () => {
     render(<ChatInterface />);
     expect(screen.getByLabelText('Your message')).toBeInTheDocument();

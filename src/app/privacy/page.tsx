@@ -52,6 +52,15 @@ export default function PrivacyPage() {
         </p>
 
         <p>
+          When a conversation arrives via the <strong>[ argue with this ]</strong> link on a
+          Fieldwork piece, parts of substantive arguments may later surface as anonymous
+          quotes on that piece. An LLM judge runs over the conversation after it ends and
+          selects up to three excerpts that read as genuine pushback. Hostile or harmful
+          content is filtered out and never surfaces. Quotes are attributed to{' '}
+          <em>anonymous</em> — there is no link back to you, your IP, or the conversation.
+        </p>
+
+        <p>
           After 90 days the daily log file is automatically deleted. There is no backup outside
           the rolling window.
         </p>
