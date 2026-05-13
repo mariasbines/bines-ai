@@ -133,6 +133,30 @@ describe('POSTCARD_FRONTMATTER', () => {
     const r = POSTCARD_FRONTMATTER.safeParse({ number: 0, published: '2026-04-22' });
     expect(r.success).toBe(false);
   });
+  it('accepts author = "maria"', () => {
+    const r = POSTCARD_FRONTMATTER.safeParse({
+      number: 1,
+      published: '2026-04-22',
+      author: 'maria',
+    });
+    expect(r.success).toBe(true);
+  });
+  it('accepts author = "claude"', () => {
+    const r = POSTCARD_FRONTMATTER.safeParse({
+      number: 1,
+      published: '2026-04-22',
+      author: 'claude',
+    });
+    expect(r.success).toBe(true);
+  });
+  it('rejects an unknown author value', () => {
+    const r = POSTCARD_FRONTMATTER.safeParse({
+      number: 1,
+      published: '2026-04-22',
+      author: 'someone-else',
+    });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('NOW_FRONTMATTER', () => {
