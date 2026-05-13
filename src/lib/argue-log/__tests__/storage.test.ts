@@ -4,9 +4,10 @@ vi.mock('@vercel/blob', () => ({
   list: vi.fn(),
   put: vi.fn(),
   del: vi.fn(),
+  get: vi.fn(),
 }));
 
-import { list, put, del } from '@vercel/blob';
+import { list, put, del, get } from '@vercel/blob';
 import {
   appendArgueLog,
   listArgueLogDays,
@@ -18,9 +19,19 @@ import type { ArgueLogEntry } from '../schema';
 const listMock = vi.mocked(list);
 const putMock = vi.mocked(put);
 const delMock = vi.mocked(del);
+const getMock = vi.mocked(get);
 
 const ORIG_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-const ORIG_FETCH = globalThis.fetch;
+
+/** Build a `get()` mock result whose stream yields `body` once. */
+function getOk(body: string) {
+  return {
+    statusCode: 200,
+    stream: new Response(body).body,
+    headers: {},
+    blob: {},
+  } as never;
+}
 
 const HEX64 = 'a'.repeat(64);
 
@@ -82,13 +93,13 @@ beforeEach(() => {
   listMock.mockReset();
   putMock.mockReset();
   delMock.mockReset();
+  getMock.mockReset();
   process.env.BLOB_READ_WRITE_TOKEN = 'fake-token';
 });
 
 afterEach(() => {
   if (ORIG_TOKEN === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
   else process.env.BLOB_READ_WRITE_TOKEN = ORIG_TOKEN;
-  globalThis.fetch = ORIG_FETCH;
 });
 
 describe('appendArgueLog', () => {
@@ -119,7 +130,7 @@ describe('appendArgueLog', () => {
     expect(filename).toBe('argue-log/2026-04-24.jsonl');
     expect(String(body).trim().split('\n')).toHaveLength(1);
     expect(opts).toMatchObject({
-      access: 'public',
+      access: 'private',
       contentType: 'application/x-ndjson',
       addRandomSuffix: false,
       allowOverwrite: true,
@@ -139,9 +150,7 @@ describe('appendArgueLog', () => {
     const previousLine =
       JSON.stringify(validEntry({ timestamp: '2026-04-24T08:00:00.000Z' })) +
       '\n';
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response(previousLine)),
-    ) as unknown as typeof fetch;
+    getMock.mockResolvedValue(getOk(previousLine));
     putMock.mockResolvedValue(undefined as never);
 
     await appendArgueLog(
@@ -214,9 +223,7 @@ describe('readArgueLogDay', () => {
       '\n' +
       JSON.stringify(validEntry({ timestamp: '2026-04-24T02:00:00.000Z' })) +
       '\n';
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response(body)),
-    ) as unknown as typeof fetch;
+    getMock.mockResolvedValue(getOk(body));
 
     const out = await readArgueLogDay('2026-04-24');
     expect(out).toHaveLength(2);
@@ -238,9 +245,7 @@ describe('readArgueLogDay', () => {
       JSON.stringify(validEntry()) +
       '\n' +
       'not-even-json\n';
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve(new Response(body)),
-    ) as unknown as typeof fetch;
+    getMock.mockResolvedValue(getOk(body));
 
     const out = await readArgueLogDay('2026-04-24');
     expect(out).toHaveLength(1);
@@ -317,7 +322,7 @@ describe('URL-leak guard (AC-010)', () => {
       putMock.mockResolvedValue(undefined as never);
       await appendArgueLog(validEntry());
 
-      // Second append on existing day (goes through fetch → concat → put)
+      // Second append on existing day (goes through get → concat → put)
       listMock.mockResolvedValue({
         blobs: [
           {
@@ -326,9 +331,7 @@ describe('URL-leak guard (AC-010)', () => {
           },
         ],
       } as never);
-      globalThis.fetch = vi.fn(() =>
-        Promise.resolve(new Response(JSON.stringify(validEntry()) + '\n')),
-      ) as unknown as typeof fetch;
+      getMock.mockResolvedValue(getOk(JSON.stringify(validEntry()) + '\n'));
       await appendArgueLog(validEntry(), {
         now: new Date('2026-04-24T09:00:00Z'),
       });
@@ -345,9 +348,7 @@ describe('URL-leak guard (AC-010)', () => {
       await listArgueLogDays();
 
       // Read path
-      globalThis.fetch = vi.fn(() =>
-        Promise.resolve(new Response(JSON.stringify(validEntry()) + '\n')),
-      ) as unknown as typeof fetch;
+      getMock.mockResolvedValue(getOk(JSON.stringify(validEntry()) + '\n'));
       await readArgueLogDay('2026-04-24');
 
       // Delete path

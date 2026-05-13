@@ -1,5 +1,5 @@
 import 'server-only';
-import { list, put } from '@vercel/blob';
+import { get, list, put } from '@vercel/blob';
 import type { PushBack } from './schema';
 
 const JSONL_PREFIX = 'push-back/';
@@ -33,12 +33,15 @@ export async function appendPushBack(
   const existing = await list({ prefix: filename, token });
   let body = JSON.stringify(entry) + '\n';
   if (existing.blobs.length > 0) {
-    const res = await fetch(existing.blobs[0].url);
-    if (res.ok) body = (await res.text()) + body;
+    // Private store — `fetch(blob.url)` returns 403. Use SDK `get()`.
+    const got = await get(filename, { access: 'private', token });
+    if (got && got.statusCode === 200) {
+      body = (await new Response(got.stream).text()) + body;
+    }
   }
 
   await put(filename, body, {
-    access: 'public',
+    access: 'private',
     contentType: 'application/x-ndjson',
     addRandomSuffix: false,
     token,
