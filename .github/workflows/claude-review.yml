@@ -68,7 +68,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           {
-            printf '🤖 **Claude PR review** (advisory — Maria approves merges)\n\n'
+            printf '**Claude PR review** (advisory — Maria approves merges)\n\n'
             cat review.md
           } > comment.md
           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
