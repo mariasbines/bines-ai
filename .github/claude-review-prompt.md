@@ -56,6 +56,18 @@ violations, security/correctness bugs, and project-rule breaks. Not to nitpick.
 - **Pre-commit gates must be clean**: typecheck/lint/test/build. If the PR
   description doesn't say all four passed locally, mention it.
 
+## Things NOT to flag (known false positives)
+
+- **Anthropic model identifiers**: `claude-opus-4-7`, `claude-sonnet-4-6`,
+  `claude-haiku-4-5-20251001` are all valid current model IDs. The string
+  `claude-sonnet-4-6` in `.github/workflows/claude-review.yml` is the
+  intended model for this very workflow — do **not** claim it's a typo for
+  `4-5` or that it will 400. Your training data predates this release.
+- More broadly: don't make confident claims about Anthropic API trivia
+  (model slugs, header names, parameter formats) unless the diff itself
+  ships the evidence. If you're unsure whether something is wrong, say so
+  and leave the verdict at COMMENT, not REQUEST_CHANGES.
+
 ## Output format
 
 Reply in markdown. Sections:
