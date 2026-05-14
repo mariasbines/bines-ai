@@ -9,6 +9,7 @@ export function contentPaths(root: string = DEFAULT_CONTENT_ROOT) {
     fieldworkDir: path.join(root, 'fieldwork'),
     postcardsDir: path.join(root, 'postcards'),
     nowFile: path.join(root, 'now.mdx'),
+    nowArchiveDir: path.join(root, 'now-archive'),
     tasteFile: path.join(root, 'taste.mdx'),
   };
 }
