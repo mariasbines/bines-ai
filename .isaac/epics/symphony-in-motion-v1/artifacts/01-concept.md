@@ -51,7 +51,7 @@ Current art assets in the repo (as of 2026-05-26 evening, post-merge of FW08 + P
 | FW02 architect-not-bystander | `header.mp4` 597 KB | `poster.jpg` | Smallest video |
 | FW03 maybe-an-entrepreneur | `header.mp4` 1.8 MB | `poster.jpg` | |
 | FW04 singularity-different-clothes | `header.mp4` 2.4 MB | `poster.jpg` | |
-| FW05 singularity-is-here | **missing** | **missing** | Frontmatter has `readMinutes` only — no video has ever been generated for this piece |
+| FW05 singularity-is-here | none | none | Status `retired-evolved` — 2018-02-02 LinkedIn republish, paired with FW04 as the 2026 reflection on it. Has no hero video, possibly by design (retired pieces may not warrant the in-rotation treatment). |
 | FW06 brain-swap | `header.mp4` 3.6 MB | `poster.jpg` | Hand-printed mustard/grey/coral |
 | FW07 know-thyself | `header.mp4` 1.6 MB | `poster.jpg` | Literal poison-dart-frog illustration |
 | FW08 precursor (slug `08-both-desks`) | `header.mp4` 2.0 MB | `poster.jpg` | Paper torn off the wall by wind, pin remains |
@@ -137,7 +137,11 @@ The architecture phase (Phase 3) will need to resolve these. Captured here so th
 
 ### Pre-requisites that need resolving before architecture
 
-17. **FW05 missing video.** Generate a header.mp4 + poster.jpg for FW05 *before* the gallery ships, or accept the gap (and design the gallery to handle gaps gracefully)? Worth a quick Maria-call before the architecture phase commits.
+17. **Treatment of retired pieces.** FW05 is `retired-evolved` (a 2018 LinkedIn republish paired with FW04 as the 2026 reflection) and has no hero video. The gallery needs an explicit policy:
+    - **A.** Gallery surfaces only `in-rotation` + `changed-my-mind` pieces; retired pieces stay in `/archive` (matches existing surface logic — 7 videos in scope today).
+    - **B.** Retired pieces appear in the gallery with a different visual treatment (poster only, faded, labelled).
+    - **C.** Retired pieces get backfilled with their own hero video.
+    Worth a quick Maria-call before architecture; option A is the leaning default but it's a content/curation call.
 
 ---
 
