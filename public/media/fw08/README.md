@@ -1,11 +1,11 @@
 # FW08 "Both desks" — media assets
 
-Drop two files here and uncomment the lines in `content/fieldwork/08-both-desks.mdx` frontmatter to wire them up:
+Status: installed 2026-05-26. Generated via Gemini / Veo 3 using the rip-and-fly prompt below.
 
-- `header.mp4` — 3s atmospheric loop, silent, 16:9, seamless (last frame == first frame). Generated via Gemini / Veo 3 using the prompt below.
-- `poster.jpg` — single still frame used before the video loads. Export frame 1 of the chosen video take so the still matches what the loop opens on.
+- `header.mp4` — 8s silent video (audio track stripped), 1280×720, h264. A single hand-printed paper pinned to a textured wall; wind picks up; paper tears free and flies out of frame; brass push pin stays embedded.
+- `poster.jpg` — frame at 0.5s — the paper intact on the wall before the wind arrives.
 
-Frontmatter to uncomment once assets are in:
+Wired in `content/fieldwork/08-both-desks.mdx` frontmatter:
 
     media:
       readMinutes: 5
