@@ -51,7 +51,7 @@ Current art assets in the repo (as of 2026-05-26 evening, post-merge of FW08 + P
 | FW02 architect-not-bystander | `header.mp4` 597 KB | `poster.jpg` | Smallest video |
 | FW03 maybe-an-entrepreneur | `header.mp4` 1.8 MB | `poster.jpg` | |
 | FW04 singularity-different-clothes | `header.mp4` 2.4 MB | `poster.jpg` | |
-| FW05 singularity-is-here | none | none | Status `retired-evolved` — 2018-02-02 LinkedIn republish, paired with FW04 as the 2026 reflection on it. Has no hero video, possibly by design (retired pieces may not warrant the in-rotation treatment). |
+| FW05 singularity-is-here | none | none | Status `retired-evolved`. 2018-02-02 LinkedIn republish, backfilled in commit `695c4bf` to give FW04's `changed-my-mind` mechanism its primary-source reference. No hero video *by design* — the piece exists as the superseded position FW04 points back to, not as a bines.ai piece on its own terms. **Excluded from the gallery** per the Option A decision below. |
 | FW06 brain-swap | `header.mp4` 3.6 MB | `poster.jpg` | Hand-printed mustard/grey/coral |
 | FW07 know-thyself | `header.mp4` 1.6 MB | `poster.jpg` | Literal poison-dart-frog illustration |
 | FW08 precursor (slug `08-both-desks`) | `header.mp4` 2.0 MB | `poster.jpg` | Paper torn off the wall by wind, pin remains |
@@ -135,13 +135,16 @@ The architecture phase (Phase 3) will need to resolve these. Captured here so th
 15. **AI-tool attribution.** Does Maria want a note about Veo / Gemini / etc. being used to generate the videos, or stay tool-agnostic?
 16. **Postcard art question.** Postcards are text-only today. Does the gallery want a typographic-postcard representation, or is the gallery strictly for visual art?
 
-### Pre-requisites that need resolving before architecture
+### Resolved during concept review (2026-05-26)
 
-17. **Treatment of retired pieces.** FW05 is `retired-evolved` (a 2018 LinkedIn republish paired with FW04 as the 2026 reflection) and has no hero video. The gallery needs an explicit policy:
-    - **A.** Gallery surfaces only `in-rotation` + `changed-my-mind` pieces; retired pieces stay in `/archive` (matches existing surface logic — 7 videos in scope today).
-    - **B.** Retired pieces appear in the gallery with a different visual treatment (poster only, faded, labelled).
-    - **C.** Retired pieces get backfilled with their own hero video.
-    Worth a quick Maria-call before architecture; option A is the leaning default but it's a content/curation call.
+**Treatment of retired pieces — Option A.** Gallery surfaces only `in-rotation` and `changed-my-mind` pieces. Retired pieces stay in `/archive` where they already live; the gallery doesn't try to surface them in any form.
+
+**Rationale:**
+- FW05 is the only piece this affects today. It was backfilled in commit `695c4bf` to give FW04's `changed-my-mind` mechanism its primary-source reference — not as a piece on its own terms. Generating bines.ai-style hero art for a 2018 LinkedIn republish would be misrepresentative of what FW05 *is*.
+- Matches existing surface logic: `/archive` is already where retired pieces live, and the gallery is for *currently the work*, not the complete corpus.
+- Future-proofs the gallery's scope contract — as more pieces retire, they leave the gallery automatically via their `status` field.
+
+**Working scope for the gallery: 7 hero videos** — FW01, FW02, FW03, FW04, FW06, FW07, FW08.
 
 ---
 
