@@ -7,9 +7,23 @@ import { FIELDWORK_FRONTMATTER, type Fieldwork, type FieldworkStatus } from './t
 
 interface LoaderOptions {
   contentRoot?: string;
-  /** Filter by status — e.g. only `in-rotation` pieces for homepage. */
-  status?: FieldworkStatus;
+  /**
+   * Filter by status. Accepts a single status (e.g. `'in-rotation'` for the
+   * homepage) or an array of statuses (e.g. the gallery's union of
+   * `in-rotation` + `changed-my-mind`). Omitted = return all statuses.
+   */
+  status?: FieldworkStatus | readonly FieldworkStatus[];
 }
+
+/**
+ * Status union for the /gallery page. Filter-by-status (not by manual list)
+ * future-proofs the gallery scope: as pieces retire, they leave the gallery
+ * automatically via their `status` field.
+ */
+export const GALLERY_SCOPE: readonly FieldworkStatus[] = [
+  'in-rotation',
+  'changed-my-mind',
+] as const;
 
 const EMPTY_ENRICHMENT: PushbackEnrichment = { count: 0, landed: 0, excerpts: [] };
 
@@ -50,8 +64,13 @@ export async function getAllFieldwork(options: LoaderOptions = {}): Promise<Fiel
     }),
   );
 
-  const filtered = options.status
-    ? enriched.filter((p) => p.frontmatter.status === options.status)
+  const wanted = options.status
+    ? new Set<FieldworkStatus>(
+        typeof options.status === 'string' ? [options.status] : options.status,
+      )
+    : null;
+  const filtered = wanted
+    ? enriched.filter((p) => wanted.has(p.frontmatter.status))
     : enriched;
 
   return filtered.sort((a, b) =>
@@ -74,6 +93,18 @@ export async function getFieldworkByStatus(
   options: Omit<LoaderOptions, 'status'> = {},
 ): Promise<Fieldwork[]> {
   return getAllFieldwork({ ...options, status });
+}
+
+/**
+ * Gallery scope helper — returns `in-rotation` + `changed-my-mind` pieces,
+ * sorted descending by `published`. Retired pieces (`retired-still-right`,
+ * `retired-evolved`) are excluded by design — they live in `/archive`.
+ * Used by the `/gallery` route (epic symphony-in-motion-v1, story 005.001).
+ */
+export async function getGalleryFieldwork(
+  options: Omit<LoaderOptions, 'status'> = {},
+): Promise<Fieldwork[]> {
+  return getAllFieldwork({ ...options, status: GALLERY_SCOPE });
 }
 
 /** For /archive grouping (001.009 consumer). Empty categories map to []. */

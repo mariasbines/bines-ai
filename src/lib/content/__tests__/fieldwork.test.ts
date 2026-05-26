@@ -16,10 +16,12 @@ vi.mock('@/lib/argue-judge/loader', () => ({
 }));
 
 import {
+  GALLERY_SCOPE,
   getAllFieldwork,
   getFieldworkBySlug,
   getFieldworkByStatus,
   getFieldworkGroupedByStatus,
+  getGalleryFieldwork,
   validateChangedMyMindReferences,
 } from '../fieldwork';
 import type { Fieldwork } from '../types';
@@ -82,6 +84,83 @@ describe('getAllFieldwork', () => {
     const out = await getAllFieldwork({ contentRoot: tmp, status: 'in-rotation' });
     expect(out).toHaveLength(1);
     expect(out[0].frontmatter.slug).toBe('a');
+  });
+  it('accepts an array of statuses and returns the union', async () => {
+    await writeFw('a.mdx', { ...BASE, id: 1, slug: 'a', status: 'in-rotation' });
+    await writeFw('b.mdx', { ...BASE, id: 2, slug: 'b', status: 'retired-still-right' });
+    await writeFw('c.mdx', {
+      ...BASE,
+      id: 3,
+      slug: 'c',
+      status: 'changed-my-mind',
+      supersedes: 'b',
+      originalPosition: 'o',
+      newPosition: 'n',
+    });
+    const out = await getAllFieldwork({
+      contentRoot: tmp,
+      status: ['in-rotation', 'changed-my-mind'],
+    });
+    expect(out.map((p) => p.frontmatter.slug).sort()).toEqual(['a', 'c']);
+  });
+  it('treats a single-element array status the same as a single-string status', async () => {
+    await writeFw('a.mdx', { ...BASE, id: 1, slug: 'a', status: 'in-rotation' });
+    await writeFw('b.mdx', { ...BASE, id: 2, slug: 'b', status: 'retired-still-right' });
+    const single = await getAllFieldwork({ contentRoot: tmp, status: 'in-rotation' });
+    const arrayed = await getAllFieldwork({ contentRoot: tmp, status: ['in-rotation'] });
+    expect(arrayed.map((p) => p.frontmatter.slug)).toEqual(single.map((p) => p.frontmatter.slug));
+  });
+});
+
+describe('getGalleryFieldwork', () => {
+  it('returns the union of in-rotation + changed-my-mind, sorted descending by published', async () => {
+    await writeFw('a.mdx', {
+      ...BASE,
+      id: 1,
+      slug: 'a',
+      status: 'in-rotation',
+      published: '2026-05-10',
+    });
+    await writeFw('b.mdx', {
+      ...BASE,
+      id: 2,
+      slug: 'b',
+      status: 'retired-still-right',
+      published: '2026-04-01',
+    });
+    await writeFw('c.mdx', {
+      ...BASE,
+      id: 3,
+      slug: 'c',
+      status: 'changed-my-mind',
+      supersedes: 'b',
+      originalPosition: 'o',
+      newPosition: 'n',
+      published: '2026-05-20',
+    });
+    const out = await getGalleryFieldwork({ contentRoot: tmp });
+    expect(out.map((p) => p.frontmatter.slug)).toEqual(['c', 'a']);
+  });
+  it('excludes retired pieces (FW05 guard — story 005.001 AC-001.6)', async () => {
+    await writeFw('rot.mdx', { ...BASE, id: 1, slug: 'rot', status: 'in-rotation' });
+    await writeFw('still.mdx', { ...BASE, id: 2, slug: 'still', status: 'retired-still-right' });
+    await writeFw('evolved.mdx', {
+      ...BASE,
+      id: 5,
+      slug: 'fw05',
+      status: 'retired-evolved',
+    });
+    const out = await getGalleryFieldwork({ contentRoot: tmp });
+    const slugs = out.map((p) => p.frontmatter.slug);
+    expect(slugs).not.toContain('fw05');
+    expect(slugs).not.toContain('still');
+    expect(slugs).toContain('rot');
+  });
+});
+
+describe('GALLERY_SCOPE constant', () => {
+  it('contains exactly in-rotation + changed-my-mind', () => {
+    expect([...GALLERY_SCOPE].sort()).toEqual(['changed-my-mind', 'in-rotation']);
   });
 });
 

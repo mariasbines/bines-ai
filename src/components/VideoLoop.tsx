@@ -9,6 +9,18 @@ interface VideoLoopProps {
   alt: string;
   priority?: boolean;
   className?: string;
+  /**
+   * When true, the IntersectionObserver stays alive for the component's
+   * lifetime and toggles the video's play/pause as the wrapper enters and
+   * exits the viewport. Default (false) preserves the original behaviour:
+   * the observer disconnects after the first intersection and the video
+   * keeps playing regardless of subsequent scroll position.
+   *
+   * Use case: the `/gallery` page renders multiple `<VideoLoop>` panels
+   * side by side; this prop ensures only the in-view panel's video plays
+   * at any moment, bounding CPU + bandwidth.
+   */
+  pauseWhenOffscreen?: boolean;
 }
 
 function prefersReducedMotion(): boolean {
@@ -21,6 +33,11 @@ function prefersReducedMotion(): boolean {
  * Reduced-motion users see a poster image + play button overlay.
  *
  * Renders a <noscript> native <video> fallback for no-JS visitors.
+ *
+ * With `pauseWhenOffscreen` enabled (gallery use case), the IO stays alive
+ * and the video pauses on scroll-out / resumes on scroll-in. The video's
+ * `src` is loaded once the wrapper first enters the viewport and remains
+ * loaded thereafter (preserves browser-cached video data).
  */
 export function VideoLoop({
   src,
@@ -29,19 +46,53 @@ export function VideoLoop({
   alt,
   priority = false,
   className,
+  pauseWhenOffscreen = false,
 }: VideoLoopProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [reduced, setReduced] = useState(false);
   const [inView, setInView] = useState(priority);
+  const [hasBeenInView, setHasBeenInView] = useState(priority);
   const [userPlay, setUserPlay] = useState(false);
 
   useEffect(() => {
     setReduced(prefersReducedMotion());
   }, []);
 
+  // Mirror inView → hasBeenInView (once true, stays true). This decouples the
+  // `src` loading decision (one-way latch) from the `inView` play/pause state
+  // (two-way under pauseWhenOffscreen). Without this, toggling inView back to
+  // false would unset src and force the browser to unload the video.
   useEffect(() => {
-    if (priority || inView) return;
+    if (inView && !hasBeenInView) setHasBeenInView(true);
+  }, [inView, hasBeenInView]);
+
+  useEffect(() => {
+    // Always-observe path: pauseWhenOffscreen toggles inView with intersection
+    // state across the component's lifetime. Cleanup disconnects on unmount.
+    if (pauseWhenOffscreen) {
+      const el = wrapperRef.current;
+      if (!el || typeof IntersectionObserver === 'undefined') {
+        setInView(true);
+        return;
+      }
+      const obs = new IntersectionObserver(
+        (entries) => {
+          const last = entries[entries.length - 1];
+          if (last) setInView(last.isIntersecting);
+        },
+        { rootMargin: '200px' },
+      );
+      obs.observe(el);
+      return () => obs.disconnect();
+    }
+
+    // Legacy path (existing behaviour preserved exactly): if priority,
+    // there's no need to observe — the video plays on mount. Otherwise
+    // observe and disconnect after the first intersection sets
+    // inView=true permanently. Deps intentionally exclude `inView` so the
+    // effect doesn't re-run when the observer fires.
+    if (priority) return;
     const el = wrapperRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') {
       setInView(true);
@@ -58,7 +109,7 @@ export function VideoLoop({
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [priority, inView]);
+  }, [priority, pauseWhenOffscreen]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -75,8 +126,11 @@ export function VideoLoop({
           // Autoplay may be blocked; leave paused.
         });
       }
+    } else if (pauseWhenOffscreen) {
+      // When the gallery's panel scrolls out of view, pause to free CPU.
+      v.pause();
     }
-  }, [inView, reduced, userPlay]);
+  }, [inView, reduced, userPlay, pauseWhenOffscreen]);
 
   return (
     <div
@@ -97,7 +151,7 @@ export function VideoLoop({
       </noscript>
       <video
         ref={videoRef}
-        src={inView ? src : undefined}
+        src={hasBeenInView ? src : undefined}
         poster={poster}
         preload={priority ? 'auto' : 'metadata'}
         // @ts-expect-error fetchpriority is a valid HTML attr; React types lag
