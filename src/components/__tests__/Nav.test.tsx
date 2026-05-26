@@ -15,4 +15,18 @@ describe('<Nav>', () => {
     render(<Nav />);
     expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
   });
+  it('includes the Gallery entry between Postcards and Changed my mind', () => {
+    render(<Nav />);
+    const gallery = screen.getByRole('link', { name: 'Gallery' });
+    expect(gallery).toBeInTheDocument();
+    expect(gallery).toHaveAttribute('href', '/gallery');
+
+    const labels = NAV.filter((n) => !n.hideInMainNav).map((n) => n.label);
+    const postcardsIdx = labels.indexOf('Postcards');
+    const galleryIdx = labels.indexOf('Gallery');
+    const cmmIdx = labels.indexOf('Changed my mind');
+    expect(postcardsIdx).toBeGreaterThanOrEqual(0);
+    expect(galleryIdx).toBe(postcardsIdx + 1);
+    expect(cmmIdx).toBe(galleryIdx + 1);
+  });
 });
