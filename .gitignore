@@ -45,3 +45,4 @@ next-env.d.ts
 .isaac/epics/.current-epic
 .isaac/.telemetry.jsonl
 .isaac/epics/*/progress.yaml
+.env*.local

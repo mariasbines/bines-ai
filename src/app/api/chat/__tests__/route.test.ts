@@ -47,6 +47,8 @@ const {
   mockMessagesCreate,
   mockAppendArgueLog,
   mockGetFieldworkBySlug,
+  mockGetChatRatelimit,
+  mockGetChatDailyRatelimit,
   afterCallbacks,
   mockAfter,
 } = vi.hoisted(() => {
@@ -56,6 +58,11 @@ const {
     mockMessagesCreate: vi.fn(),
     mockAppendArgueLog: vi.fn(),
     mockGetFieldworkBySlug: vi.fn<(slug: string) => Promise<unknown>>(),
+    // Default: null (no env vars) — the route then skips rate-limiting, which
+    // matches the real module's behaviour when UPSTASH_* are absent. Tests that
+    // exercise the limiter override these per-spec.
+    mockGetChatRatelimit: vi.fn<() => unknown>(() => null),
+    mockGetChatDailyRatelimit: vi.fn<() => unknown>(() => null),
     afterCallbacks,
     mockAfter: vi.fn((cb: () => Promise<void> | void) => {
       afterCallbacks.push(cb);
@@ -92,6 +99,14 @@ vi.mock('@/lib/content/fieldwork', () => ({
   getFieldworkBySlug: mockGetFieldworkBySlug,
 }));
 
+// Rate-limiter — controllable per-test. Default getters return null so the
+// route skips limiting (matches real behaviour with UPSTASH_* unset).
+vi.mock('@/lib/chat/rate-limit', () => ({
+  getChatRatelimit: mockGetChatRatelimit,
+  getChatDailyRatelimit: mockGetChatDailyRatelimit,
+  __resetRatelimitForTests: vi.fn(),
+}));
+
 import { __resetRatelimitForTests } from '@/lib/chat/rate-limit';
 
 const ORIG_KEY = process.env.ANTHROPIC_API_KEY;
@@ -110,6 +125,11 @@ beforeEach(() => {
   mockGetFieldworkBySlug.mockReset();
   // Default: any slug resolves to null (unknown slug — no preface composed).
   mockGetFieldworkBySlug.mockResolvedValue(null);
+  // Default: no limiter configured (matches UPSTASH_* unset). Override per-spec.
+  mockGetChatRatelimit.mockReset();
+  mockGetChatRatelimit.mockReturnValue(null);
+  mockGetChatDailyRatelimit.mockReset();
+  mockGetChatDailyRatelimit.mockReturnValue(null);
   afterCallbacks.length = 0;
   mockAfter.mockClear();
   // Salt is required for all tests except the dedicated "missing salt" one.
@@ -685,6 +705,70 @@ describe('POST /api/chat — from_slug preface (story 003.002)', () => {
     expect(
       errSpy.mock.calls.some((args) =>
         String(args[0] ?? '').includes('piece-preface lookup failed'),
+      ),
+    ).toBe(true);
+    errSpy.mockRestore();
+  });
+});
+
+// Rate-limiter resilience — the store (Upstash) can be idle-disabled or down.
+// A missing/throwing limiter must NEVER take the chat down: fail OPEN.
+describe('POST /api/chat — rate-limiter resilience', () => {
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  it('still enforces the limit when the store is healthy (429 on baseline)', async () => {
+    mockGetChatRatelimit.mockReturnValue({
+      limit: vi.fn().mockResolvedValue({ success: false }),
+    });
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body.category).toBe('rate-limited');
+    expect(mockMessagesStream).not.toHaveBeenCalled();
+  });
+
+  it('fails OPEN (200, no 500) when the baseline limiter throws', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetChatRatelimit.mockReturnValue({
+      limit: vi.fn().mockRejectedValue(new Error('upstash unreachable')),
+    });
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(res.status).toBe(200);
+    await bodyOf(res);
+    // Request proceeded to the model rather than 500ing.
+    expect(mockMessagesStream).toHaveBeenCalledOnce();
+    expect(
+      errSpy.mock.calls.some((args) =>
+        String(args[0] ?? '').includes('baseline ratelimit unavailable'),
+      ),
+    ).toBe(true);
+    errSpy.mockRestore();
+  });
+
+  it('fails OPEN (200, no 500) when the daily limiter throws', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Baseline healthy + under limit; daily store is down.
+    mockGetChatRatelimit.mockReturnValue({
+      limit: vi.fn().mockResolvedValue({ success: true }),
+    });
+    mockGetChatDailyRatelimit.mockReturnValue({
+      limit: vi.fn().mockRejectedValue(new Error('upstash unreachable')),
+    });
+    const res = await callRoute({
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    expect(res.status).toBe(200);
+    await bodyOf(res);
+    expect(mockMessagesStream).toHaveBeenCalledOnce();
+    expect(
+      errSpy.mock.calls.some((args) =>
+        String(args[0] ?? '').includes('daily ratelimit unavailable'),
       ),
     ).toBe(true);
     errSpy.mockRestore();
