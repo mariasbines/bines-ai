@@ -7,9 +7,10 @@ import { Redis } from '@upstash/redis';
  *   - Baseline: 10 messages / 10 min / IP (AC-003)
  *   - Hard cap: 50 messages / day / IP
  *
- * Both return `null` when UPSTASH_REDIS_REST_URL/TOKEN env vars are absent —
- * in that case the route is permissive (dev/CI). Production MUST set these;
- * Vercel env config happens in 001.016.
+ * Both return `null` when no Redis credentials are present in the env — in
+ * that case the route is permissive (dev/CI). Production gets these from the
+ * Vercel Marketplace Upstash integration (KV_REST_API_URL/TOKEN), with the
+ * legacy manually-set UPSTASH_REDIS_REST_URL/TOKEN kept as a fallback.
  *
  * The numeric thresholds are env-tunable so previews can run a generous
  * limit for QA without burning the production posture:
@@ -30,8 +31,12 @@ let _baseline: Ratelimit | null = null;
 let _daily: Ratelimit | null = null;
 
 function getRedisFromEnv(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Prefer the Vercel Marketplace Upstash integration vars (KV_REST_API_*);
+  // fall back to the legacy manually-set UPSTASH_REDIS_REST_* vars so the
+  // limiter keeps working during the cutover (and in any env still on them).
+  const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+  const token =
+    process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
   return new Redis({ url, token });
 }

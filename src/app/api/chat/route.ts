@@ -90,27 +90,38 @@ export async function POST(req: Request) {
 
   const ip = getIp(req);
 
-  // 3. Rate-limit: baseline (10 / 10 min) + hard cap (50 / day)
+  // 3. Rate-limit: baseline (10 / 10 min) + hard cap (50 / day).
+  // Fail OPEN if the store is unreachable (e.g. Upstash idle-disabled or
+  // down): a missing rate-limiter must never take the chat down. We'd rather
+  // briefly forgo abuse protection than 500 every request.
   const baseline = getChatRatelimit();
   if (baseline) {
-    const { success } = await baseline.limit(ip);
-    if (!success) {
-      return errorResponse(
-        429,
-        "ease up — we've had a lot of arguing today",
-        'rate-limited',
-      );
+    try {
+      const { success } = await baseline.limit(ip);
+      if (!success) {
+        return errorResponse(
+          429,
+          "ease up — we've had a lot of arguing today",
+          'rate-limited',
+        );
+      }
+    } catch (err) {
+      console.error('[chat] baseline ratelimit unavailable, failing open', err);
     }
   }
   const daily = getChatDailyRatelimit();
   if (daily) {
-    const { success } = await daily.limit(`day:${ip}`);
-    if (!success) {
-      return errorResponse(
-        429,
-        "that's your 50 for today. come back tomorrow",
-        'rate-limited',
-      );
+    try {
+      const { success } = await daily.limit(`day:${ip}`);
+      if (!success) {
+        return errorResponse(
+          429,
+          "that's your 50 for today. come back tomorrow",
+          'rate-limited',
+        );
+      }
+    } catch (err) {
+      console.error('[chat] daily ratelimit unavailable, failing open', err);
     }
   }
 
