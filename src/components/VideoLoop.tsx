@@ -154,8 +154,6 @@ export function VideoLoop({
         src={hasBeenInView ? src : undefined}
         poster={poster}
         preload={priority ? 'auto' : 'metadata'}
-        // @ts-expect-error fetchpriority is a valid HTML attr; React types lag
-        fetchpriority={priority ? 'high' : undefined}
         muted
         loop
         playsInline

@@ -45,14 +45,29 @@ function makePiece(slug: string, title: string): Fieldwork {
   };
 }
 
+function renderGallery(pieces: Fieldwork[]) {
+  return render(<Gallery pieces={pieces} description="Atmospheric loops." />);
+}
+
+// Drive the container's scroll geometry, then fire a scroll event so the
+// component recomputes which directions are still scrollable.
+function setScroll(
+  region: HTMLElement,
+  { scrollLeft, clientWidth, scrollWidth }: { scrollLeft: number; clientWidth: number; scrollWidth: number },
+) {
+  Object.defineProperty(region, 'scrollLeft', { value: scrollLeft, configurable: true });
+  Object.defineProperty(region, 'clientWidth', { value: clientWidth, configurable: true });
+  Object.defineProperty(region, 'scrollWidth', { value: scrollWidth, configurable: true });
+  fireEvent.scroll(region);
+}
+
 describe('<Gallery>', () => {
   it('renders one panel per piece in the given order', () => {
-    const pieces = [
+    renderGallery([
       makePiece('a', 'Alpha'),
       makePiece('b', 'Beta'),
       makePiece('c', 'Gamma'),
-    ];
-    render(<Gallery pieces={pieces} />);
+    ]);
     const panels = screen.getAllByTestId('gallery-panel');
     expect(panels).toHaveLength(3);
     expect(panels[0]).toHaveAttribute('data-slug', 'a');
@@ -61,33 +76,76 @@ describe('<Gallery>', () => {
   });
 
   it('passes priority=true only to the first panel', () => {
-    render(
-      <Gallery
-        pieces={[makePiece('a', 'A'), makePiece('b', 'B'), makePiece('c', 'C')]}
-      />,
-    );
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B'), makePiece('c', 'C')]);
     const panels = screen.getAllByTestId('gallery-panel');
     expect(panels[0]).toHaveAttribute('data-priority', '1');
     expect(panels[1]).toHaveAttribute('data-priority', '0');
     expect(panels[2]).toHaveAttribute('data-priority', '0');
   });
 
-  it('renders the scroll affordance glyph', () => {
-    render(<Gallery pieces={[makePiece('a', 'A')]} />);
-    const affordance = screen.getByTestId('gallery-affordance');
-    expect(affordance.textContent).toContain('←');
-    expect(affordance.textContent).toContain('→');
+  it('renders the gallery header with the title and description', () => {
+    renderGallery([makePiece('a', 'A')]);
+    expect(screen.getByRole('heading', { name: 'Gallery' })).toBeInTheDocument();
+    expect(screen.getByText('Atmospheric loops.')).toBeInTheDocument();
   });
 
-  it('renders empty-state copy when pieces is empty', () => {
-    render(<Gallery pieces={[]} />);
-    expect(
-      screen.getByText(/nothing in the gallery yet/i),
-    ).toBeInTheDocument();
+  it('renders labelled prev / next scroll buttons', () => {
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
+    expect(screen.getByTestId('gallery-prev')).toHaveAttribute('aria-label', 'Previous panel');
+    expect(screen.getByTestId('gallery-next')).toHaveAttribute('aria-label', 'Next panel');
+  });
+
+  it('clicking the next button scrolls one panel-width forward', () => {
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
+    const region = screen.getByTestId('gallery');
+    const scrollBySpy = vi.fn();
+    Object.defineProperty(region, 'scrollBy', { value: scrollBySpy, configurable: true });
+    // Enable the next button: there is content to the right.
+    setScroll(region, { scrollLeft: 0, clientWidth: 1024, scrollWidth: 2048 });
+    fireEvent.click(screen.getByTestId('gallery-next'));
+    expect(scrollBySpy).toHaveBeenCalledWith({ left: 1024, behavior: 'smooth' });
+  });
+
+  it('clicking the prev button scrolls one panel-width backward', () => {
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
+    const region = screen.getByTestId('gallery');
+    const scrollBySpy = vi.fn();
+    Object.defineProperty(region, 'scrollBy', { value: scrollBySpy, configurable: true });
+    // Enable the prev button: we're scrolled away from the start.
+    setScroll(region, { scrollLeft: 800, clientWidth: 800, scrollWidth: 2400 });
+    fireEvent.click(screen.getByTestId('gallery-prev'));
+    expect(scrollBySpy).toHaveBeenCalledWith({ left: -800, behavior: 'smooth' });
+  });
+
+  it('disables the prev button at the start and enables it once scrolled', () => {
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
+    const region = screen.getByTestId('gallery');
+    const prev = screen.getByTestId('gallery-prev');
+    // At the start (scrollLeft 0) the prev button is inert.
+    expect(prev).toBeDisabled();
+
+    setScroll(region, { scrollLeft: 500, clientWidth: 1000, scrollWidth: 2000 });
+    expect(prev).toBeEnabled();
+  });
+
+  it('disables the next button once scrolled to the end', () => {
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
+    const region = screen.getByTestId('gallery');
+    const next = screen.getByTestId('gallery-next');
+    // Scrolled fully right: scrollLeft === scrollWidth - clientWidth.
+    setScroll(region, { scrollLeft: 1000, clientWidth: 1000, scrollWidth: 2000 });
+    expect(next).toBeDisabled();
+  });
+
+  it('renders empty-state copy (and no nav buttons) when pieces is empty', () => {
+    renderGallery([]);
+    expect(screen.getByText(/nothing in the gallery yet/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('gallery-prev')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gallery-next')).not.toBeInTheDocument();
   });
 
   it('container has region semantics and tabIndex=0 for keyboard focus', () => {
-    render(<Gallery pieces={[makePiece('a', 'A')]} />);
+    renderGallery([makePiece('a', 'A')]);
     const region = screen.getByTestId('gallery');
     expect(region).toHaveAttribute('role', 'region');
     expect(region).toHaveAttribute('aria-label', 'Fieldwork gallery, horizontal scroll');
@@ -95,9 +153,7 @@ describe('<Gallery>', () => {
   });
 
   it('ArrowRight key on the container calls scrollBy with positive clientWidth', () => {
-    render(
-      <Gallery pieces={[makePiece('a', 'A'), makePiece('b', 'B')]} />,
-    );
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
     const region = screen.getByTestId('gallery');
     const scrollBySpy = vi.fn();
     Object.defineProperty(region, 'scrollBy', { value: scrollBySpy, configurable: true });
@@ -107,9 +163,7 @@ describe('<Gallery>', () => {
   });
 
   it('ArrowLeft key on the container calls scrollBy with negative clientWidth', () => {
-    render(
-      <Gallery pieces={[makePiece('a', 'A'), makePiece('b', 'B')]} />,
-    );
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
     const region = screen.getByTestId('gallery');
     const scrollBySpy = vi.fn();
     Object.defineProperty(region, 'scrollBy', { value: scrollBySpy, configurable: true });
@@ -119,9 +173,7 @@ describe('<Gallery>', () => {
   });
 
   it('does not call scrollBy for non-arrow keys', () => {
-    render(
-      <Gallery pieces={[makePiece('a', 'A'), makePiece('b', 'B')]} />,
-    );
+    renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
     const region = screen.getByTestId('gallery');
     const scrollBySpy = vi.fn();
     Object.defineProperty(region, 'scrollBy', { value: scrollBySpy, configurable: true });
