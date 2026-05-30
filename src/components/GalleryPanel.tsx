@@ -42,7 +42,7 @@ export function GalleryPanel({ piece, priority }: GalleryPanelProps) {
     <article
       data-testid="gallery-panel"
       data-slug={slug}
-      className="relative w-screen h-[100dvh] shrink-0 snap-center"
+      className="relative w-screen h-full shrink-0 snap-center"
       style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
     >
       <Link

@@ -17,13 +17,5 @@ export const metadata: Metadata = {
 
 export default async function GalleryPage() {
   const pieces = await getGalleryFieldwork();
-  return (
-    <div className="space-y-8">
-      <header className="mb-4">
-        <h1 className="font-serif font-black text-4xl sm:text-5xl tracking-tight">Gallery</h1>
-        <p className="mt-3 font-serif text-base text-ink/70 italic">{DESCRIPTION}</p>
-      </header>
-      <Gallery pieces={pieces} />
-    </div>
-  );
+  return <Gallery pieces={pieces} description={DESCRIPTION} />;
 }
