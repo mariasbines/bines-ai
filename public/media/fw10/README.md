@@ -1,14 +1,14 @@
-# FW10 "The knee and the shrug" — media assets
+# FW10 "Excellent manners" (formerly "The knee and the shrug") — media assets
 
 Status: installed 2026-06-10. Generated via Gemini / Veo 3 using the Mr. Ed prompt below (third concept, second take — the stepping-stones and galloping-stallion concepts were abandoned; see Formula).
 
 - `header.mp4` — 7s silent loop (audio stripped), 1280×720, h264. A grinning ruby horse head in profile (Mr. Ed lineage); a carrot on a string swings just out of reach; as it passes, the mouth opens into the full toothy grin, then settles back to a sly smile. Swing arcs drawn as printed motion marks. Loop-treated: final source second crossfaded into the first (xfade 1s), wrap point lands on the same source frame — seamless by construction.
 - `poster.jpg` — clean frame at 0.3s — the sly closed smile, pre-grin, so the grin is a surprise when autoplay kicks in.
 
-Wired in `content/fieldwork/10-the-knee-and-the-shrug.mdx` frontmatter:
+Wired in `content/fieldwork/10-excellent-manners.mdx` frontmatter:
 
     media:
-      readMinutes: 6
+      readMinutes: 3
       headerVideo: "/media/fw10/header.mp4"
       posterFrame: "/media/fw10/poster.jpg"
 
