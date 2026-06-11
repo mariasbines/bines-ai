@@ -117,24 +117,27 @@ describe('<Gallery>', () => {
     expect(scrollBySpy).toHaveBeenCalledWith({ left: -800, behavior: 'smooth' });
   });
 
-  it('disables the prev button at the start and enables it once scrolled', () => {
+  it('dims (aria-disabled) the prev button at the start and undims it once scrolled', () => {
     renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
     const region = screen.getByTestId('gallery');
     const prev = screen.getByTestId('gallery-prev');
-    // At the start (scrollLeft 0) the prev button is inert.
-    expect(prev).toBeDisabled();
+    // At the start (scrollLeft 0) the prev button is dimmed but NEVER
+    // disabled — a stale mount-time read must not brick the control.
+    expect(prev).toHaveAttribute('aria-disabled', 'true');
+    expect(prev).toBeEnabled();
 
     setScroll(region, { scrollLeft: 500, clientWidth: 1000, scrollWidth: 2000 });
-    expect(prev).toBeEnabled();
+    expect(prev).toHaveAttribute('aria-disabled', 'false');
   });
 
-  it('disables the next button once scrolled to the end', () => {
+  it('dims (aria-disabled) the next button once scrolled to the end — but it stays clickable', () => {
     renderGallery([makePiece('a', 'A'), makePiece('b', 'B')]);
     const region = screen.getByTestId('gallery');
     const next = screen.getByTestId('gallery-next');
     // Scrolled fully right: scrollLeft === scrollWidth - clientWidth.
     setScroll(region, { scrollLeft: 1000, clientWidth: 1000, scrollWidth: 2000 });
-    expect(next).toBeDisabled();
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    expect(next).toBeEnabled();
   });
 
   it('renders empty-state copy (and no nav buttons) when pieces is empty', () => {
