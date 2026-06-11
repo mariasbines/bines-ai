@@ -42,38 +42,49 @@ export function GalleryPanel({ piece, priority }: GalleryPanelProps) {
     <article
       data-testid="gallery-panel"
       data-slug={slug}
-      className="relative w-screen h-full shrink-0 snap-center"
+      className="relative w-screen h-full shrink-0 snap-center [container-type:size]"
       style={{ ['--color-accent' as string]: accentVar(accent) } as React.CSSProperties}
     >
       <Link
         href={`/fieldwork/${slug}`}
         aria-label={`Read fieldwork ${idPadded}: ${title}`}
-        className="block absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--color-accent)]"
+        className="absolute inset-0 flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--color-accent)]"
       >
-        <VideoLoop
-          src={media.headerVideo}
-          poster={media.posterFrame}
-          captions={media.captions}
-          alt={`Atmospheric loop for ${title}`}
-          priority={priority}
-          pauseWhenOffscreen
-          className="!aspect-auto absolute inset-0 [&>video]:!h-full [&>video]:!w-full"
-        />
-
-        {/* Scrim: ink fades from bottom up so the caption sits on a readable surface. */}
+        {/*
+         * The stage: an exact 16:9 box fitted INSIDE the panel (container
+         * units, so it tracks the panel, not the viewport). On wide windows
+         * the loop letterboxes onto the paper instead of cropping the
+         * artwork; on tall windows it pillarboxes. The print is never cut.
+         */}
         <div
-          data-testid="gallery-panel-scrim"
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-ink/70 to-transparent"
-        />
+          data-testid="gallery-panel-stage"
+          className="relative w-[min(100cqw,177.7778cqh)] h-[min(100cqh,56.25cqw)]"
+        >
+          <VideoLoop
+            src={media.headerVideo}
+            poster={media.posterFrame}
+            captions={media.captions}
+            alt={`Atmospheric loop for ${title}`}
+            priority={priority}
+            pauseWhenOffscreen
+            className="!aspect-auto absolute inset-0 [&>video]:!h-full [&>video]:!w-full"
+          />
 
-        {/* Caption: bottom-left, font-mono, "fieldwork ##" in accent. */}
-        <div className="absolute bottom-6 left-6 font-mono text-xs uppercase tracking-[0.14em]">
-          <span className="text-[color:var(--color-accent)]">fieldwork {idPadded}</span>
-          <span className="mx-1 text-paper/70" aria-hidden="true">
-            ·
-          </span>
-          <span className="text-paper">{title}</span>
+          {/* Scrim: ink fades from bottom up so the caption sits on a readable surface. */}
+          <div
+            data-testid="gallery-panel-scrim"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-ink/70 to-transparent"
+          />
+
+          {/* Caption: bottom-left, font-mono, "fieldwork ##" in accent — anchored to the artwork, not the matting. */}
+          <div className="absolute bottom-6 left-6 font-mono text-xs uppercase tracking-[0.14em]">
+            <span className="text-[color:var(--color-accent)]">fieldwork {idPadded}</span>
+            <span className="mx-1 text-paper/70" aria-hidden="true">
+              ·
+            </span>
+            <span className="text-paper">{title}</span>
+          </div>
         </div>
 
         {/* First-panel-only scroll affordance: faint right-edge gradient. */}
