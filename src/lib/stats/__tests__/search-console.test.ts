@@ -1,5 +1,12 @@
+// @vitest-environment node
+//
+// The JWT signing path needs a real crypto.subtle. jsdom doesn't provide
+// one, and stubbing the `crypto` global works on some Node versions and
+// not others (passed locally on 24, failed on CI's 20). Running this one
+// file in the node environment uses Node's native WebCrypto — the same
+// global the code sees in production — with no stubbing at all.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generateKeyPairSync, webcrypto } from 'node:crypto';
+import { generateKeyPairSync } from 'node:crypto';
 import {
   readSearchConsoleStats,
   splitBrandQueries,
@@ -12,7 +19,7 @@ const ORIG_KEY = process.env.GSC_PRIVATE_KEY;
 const NOW = new Date('2026-06-12T12:00:00.000Z');
 
 // A real (throwaway) RSA key so the WebCrypto RS256 signing path runs for
-// real — only the network is mocked. jsdom lacks crypto.subtle; use Node's.
+// real — only the network is mocked.
 const { privateKey: TEST_PEM } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
@@ -27,7 +34,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 beforeEach(() => {
-  vi.stubGlobal('crypto', webcrypto);
   process.env.GSC_CLIENT_EMAIL = 'stats@test-project.iam.gserviceaccount.com';
   // Vercel env vars flatten newlines to literal \n — exercise that path.
   process.env.GSC_PRIVATE_KEY = TEST_PEM.replace(/\n/g, '\\n');
