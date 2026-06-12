@@ -29,6 +29,40 @@ export interface SearchRow {
   position: number;
 }
 
+/** Queries containing Maria's name — the "do you own your own name" set.
+ * Matched per word so "maria bines site", "bines.ai", "maria ai blog" all
+ * count, but "submarine" does not. */
+const BRAND_QUERY_RE = /\b(maria|bines)\b|bines\.ai/i;
+
+export interface BrandSplit {
+  brand: SearchRow[];
+  topic: SearchRow[];
+  /** Impressions-weighted average position across brand queries, 1dp.
+   * null when there are no brand impressions yet. */
+  brandPosition: number | null;
+}
+
+/** Pure: split GSC query rows into brand (her name) vs topic queries.
+ * Exported separately so the page can render the "being found as a
+ * person" readout the AEO strategy centres on. */
+export function splitBrandQueries(rows: SearchRow[]): BrandSplit {
+  const brand: SearchRow[] = [];
+  const topic: SearchRow[] = [];
+  for (const row of rows) {
+    (BRAND_QUERY_RE.test(row.keys[0] ?? '') ? brand : topic).push(row);
+  }
+  const impressions = brand.reduce((sum, r) => sum + r.impressions, 0);
+  const brandPosition =
+    impressions > 0
+      ? Math.round(
+          (brand.reduce((sum, r) => sum + r.position * r.impressions, 0) /
+            impressions) *
+            10,
+        ) / 10
+      : null;
+  return { brand, topic, brandPosition };
+}
+
 export type SearchConsoleStats =
   | { status: 'unconfigured' }
   | { status: 'error'; message: string }

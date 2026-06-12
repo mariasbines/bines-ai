@@ -69,6 +69,26 @@ export function identifyAiReferrer(referrer: string): string | null {
   return null;
 }
 
+/** Referrer host substrings for the social channel Maria actually uses.
+ * LinkedIn is the only social surface for bines.ai (locked decision), so
+ * it gets its own badge in the referrer table — it's the main human
+ * distribution channel and worth seeing at a glance. */
+const SOCIAL_REFERRER_TABLE: ReadonlyArray<readonly [string, string]> = [
+  ['linkedin.com', 'LinkedIn'],
+  ['lnkd.in', 'LinkedIn'],
+];
+
+/** Identify a social surface from a referrer string. Same matching
+ * semantics as identifyAiReferrer. */
+export function identifySocialReferrer(referrer: string): string | null {
+  const ref = referrer.toLowerCase();
+  if (!ref) return null;
+  for (const [needle, name] of SOCIAL_REFERRER_TABLE) {
+    if (ref.includes(needle)) return name;
+  }
+  return null;
+}
+
 /** Slug-safe form of a bot display name, used in Blob pathnames. */
 export function botSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-');

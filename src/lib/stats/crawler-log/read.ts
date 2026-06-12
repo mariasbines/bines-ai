@@ -11,6 +11,9 @@ export interface CrawlerStats {
   byDay: Array<{ day: string; hits: number }>;
   /** Most-fetched paths, sorted desc, capped at `topN`. */
   topPaths: Array<{ path: string; hits: number }>;
+  /** Fetches of /llms.txt — the "did the machines read the note we left
+   * them" number, surfaced regardless of whether it makes topN. */
+  llmsTxtHits: number;
 }
 
 function utcDaysBack(days: number, now: Date): string[] {
@@ -72,6 +75,7 @@ export async function readCrawlerStats(
 
   return {
     totalHits,
+    llmsTxtHits: byPath.get('/llms.txt') ?? 0,
     byBot: sortDesc(
       [...byBot.entries()].map(([botSlug, hits]) => ({ botSlug, hits })),
     ),

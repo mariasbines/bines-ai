@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   identifyAiCrawler,
   identifyAiReferrer,
+  identifySocialReferrer,
   botSlug,
 } from '../ai-crawlers';
 
@@ -57,6 +58,21 @@ describe('identifyAiReferrer', () => {
     expect(identifyAiReferrer('https://www.google.com')).toBeNull();
     expect(identifyAiReferrer('linkedin.com')).toBeNull();
     expect(identifyAiReferrer('')).toBeNull();
+  });
+});
+
+describe('identifySocialReferrer', () => {
+  it('identifies LinkedIn including the short domain', () => {
+    expect(identifySocialReferrer('https://www.linkedin.com/feed/')).toBe(
+      'LinkedIn',
+    );
+    expect(identifySocialReferrer('https://lnkd.in/abc')).toBe('LinkedIn');
+  });
+
+  it('returns null for everything else', () => {
+    expect(identifySocialReferrer('https://www.google.com')).toBeNull();
+    expect(identifySocialReferrer('https://chatgpt.com')).toBeNull();
+    expect(identifySocialReferrer('')).toBeNull();
   });
 });
 

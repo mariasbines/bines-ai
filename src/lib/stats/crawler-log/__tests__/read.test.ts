@@ -59,24 +59,28 @@ describe('readCrawlerStats', () => {
         ]);
       }
       if (prefix === 'crawler-hits/2026-06-11/') {
-        return page([blobFor('2026-06-11', 'GPTBot', '/about', 'r4')]);
+        return page([
+          blobFor('2026-06-11', 'GPTBot', '/about', 'r4'),
+          blobFor('2026-06-11', 'ClaudeBot', '/llms.txt', 'r5'),
+        ]);
       }
       return page([]);
     });
 
     const stats = await readCrawlerStats(3, { now: NOW });
 
-    expect(stats.totalHits).toBe(4);
+    expect(stats.totalHits).toBe(5);
     expect(stats.byBot).toEqual([
       { botSlug: 'gptbot', hits: 3 },
-      { botSlug: 'claudebot', hits: 1 },
+      { botSlug: 'claudebot', hits: 2 },
     ]);
     expect(stats.byDay).toEqual([
       { day: '2026-06-10', hits: 0 },
-      { day: '2026-06-11', hits: 1 },
+      { day: '2026-06-11', hits: 2 },
       { day: '2026-06-12', hits: 3 },
     ]);
     expect(stats.topPaths[0]).toEqual({ path: '/postcards', hits: 2 });
+    expect(stats.llmsTxtHits).toBe(1);
   });
 
   it('follows pagination cursors within a day', async () => {

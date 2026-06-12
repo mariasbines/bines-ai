@@ -62,6 +62,7 @@ describe('readVisitStats', () => {
         data: [
           { key: 'https://chatgpt.com/', total: 7 },
           { key: 'https://www.google.com/', total: 5 },
+          { key: 'https://www.linkedin.com/', total: 4 },
         ],
       });
     });
@@ -76,7 +77,9 @@ describe('readVisitStats', () => {
     expect(stats?.timeSeries).toHaveLength(2);
     expect(stats?.topPages[0]).toEqual({ path: '/postcards', views: 30 });
     expect(stats?.referrers[0].aiSurface).toBe('ChatGPT');
+    expect(stats?.referrers[0].socialSurface).toBeNull();
     expect(stats?.referrers[1].aiSurface).toBeNull();
+    expect(stats?.referrers[2].socialSurface).toBe('LinkedIn');
 
     // Every call carries teamId — the endpoints 404 without it.
     for (const call of fetchMock.mock.calls) {

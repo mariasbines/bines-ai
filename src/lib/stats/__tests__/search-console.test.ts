@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { generateKeyPairSync, webcrypto } from 'node:crypto';
-import { readSearchConsoleStats } from '../search-console';
+import {
+  readSearchConsoleStats,
+  splitBrandQueries,
+  type SearchRow,
+} from '../search-console';
 
 const ORIG_EMAIL = process.env.GSC_CLIENT_EMAIL;
 const ORIG_KEY = process.env.GSC_PRIVATE_KEY;
@@ -120,5 +124,43 @@ describe('readSearchConsoleStats', () => {
       position: null,
     });
     expect(stats.queries).toEqual([]);
+  });
+});
+
+describe('splitBrandQueries', () => {
+  const row = (q: string, impressions: number, position: number): SearchRow => ({
+    keys: [q],
+    clicks: 1,
+    impressions,
+    ctr: 0.1,
+    position,
+  });
+
+  it('splits name queries from topic queries', () => {
+    const { brand, topic } = splitBrandQueries([
+      row('maria bines', 100, 1.2),
+      row('bines.ai', 50, 1.0),
+      row('ai essays uk', 200, 40),
+      row('submarine movies', 10, 80), // contains "marine", not "maria"
+    ]);
+    expect(brand.map((r) => r.keys[0])).toEqual(['maria bines', 'bines.ai']);
+    expect(topic.map((r) => r.keys[0])).toEqual([
+      'ai essays uk',
+      'submarine movies',
+    ]);
+  });
+
+  it('weights brand position by impressions, 1dp', () => {
+    const { brandPosition } = splitBrandQueries([
+      row('maria bines', 100, 1.0),
+      row('who is maria bines', 50, 4.0),
+    ]);
+    // (1.0*100 + 4.0*50) / 150 = 2.0
+    expect(brandPosition).toBe(2);
+  });
+
+  it('returns null position when no brand impressions exist', () => {
+    const { brandPosition } = splitBrandQueries([row('ai essays', 10, 5)]);
+    expect(brandPosition).toBeNull();
   });
 });

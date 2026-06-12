@@ -1,5 +1,5 @@
 import 'server-only';
-import { identifyAiReferrer } from './ai-crawlers';
+import { identifyAiReferrer, identifySocialReferrer } from './ai-crawlers';
 
 /**
  * Read-back from Vercel Web Analytics for the /stats visits panel.
@@ -27,7 +27,12 @@ export interface VisitStats {
   bounceRate: number | null;
   timeSeries: Array<{ date: string; views: number }>;
   topPages: Array<{ path: string; views: number }>;
-  referrers: Array<{ source: string; views: number; aiSurface: string | null }>;
+  referrers: Array<{
+    source: string;
+    views: number;
+    aiSurface: string | null;
+    socialSurface: string | null;
+  }>;
 }
 
 interface VercelEnv {
@@ -115,6 +120,7 @@ export async function readVisitStats(
         source,
         views: Number(d.total ?? 0),
         aiSurface: identifyAiReferrer(source),
+        socialSurface: identifySocialReferrer(source),
       };
     }),
   };

@@ -6,6 +6,7 @@ import { readCrawlerStats, type CrawlerStats } from '@/lib/stats/crawler-log/rea
 import { readVisitStats, type VisitStats } from '@/lib/stats/vercel-analytics';
 import {
   readSearchConsoleStats,
+  splitBrandQueries,
   type SearchConsoleStats,
 } from '@/lib/stats/search-console';
 
@@ -235,12 +236,12 @@ function VisitsPanel({ visits }: { visits: VisitStats | null }) {
         rows={visits.topPages.map((p) => ({ label: p.path, value: p.views }))}
         valueLabel="views"
       />
-      <SubHeading>referrers · AI surfaces tagged</SubHeading>
+      <SubHeading>referrers · AI surfaces + LinkedIn tagged</SubHeading>
       <RankTable
         rows={visits.referrers.map((r) => ({
           label: r.source || '(direct)',
           value: r.views,
-          badge: r.aiSurface,
+          badge: r.aiSurface ?? r.socialSurface,
         }))}
         valueLabel="views"
       />
@@ -319,6 +320,10 @@ function AeoPanel({
           label="visits referred by AI answers"
           value={aiReferralViews.toLocaleString('en-GB')}
         />
+        <BigNumber
+          label="llms.txt fetches"
+          value={crawlers.llmsTxtHits.toLocaleString('en-GB')}
+        />
       </div>
       <DayBars
         points={crawlers.byDay.map((d) => ({ day: d.day, value: d.hits }))}
@@ -356,6 +361,11 @@ function SeoPanel({ seo }: { seo: SearchConsoleStats }) {
   if (seo.status === 'error') {
     return <Unavailable>Search Console error: {seo.message}</Unavailable>;
   }
+  const { brand, topic, brandPosition } = splitBrandQueries(seo.queries);
+  const queryRow = (q: (typeof seo.queries)[number]) => ({
+    label: `${q.keys[0] ?? ''} · pos ${Math.round(q.position * 10) / 10}`,
+    value: q.impressions,
+  });
   return (
     <>
       <div className="flex flex-wrap gap-x-12 gap-y-4">
@@ -371,15 +381,15 @@ function SeoPanel({ seo }: { seo: SearchConsoleStats }) {
           label="avg position"
           value={seo.totals.position === null ? '—' : String(seo.totals.position)}
         />
+        <BigNumber
+          label="your name, avg position"
+          value={brandPosition === null ? '—' : String(brandPosition)}
+        />
       </div>
-      <SubHeading>queries</SubHeading>
-      <RankTable
-        rows={seo.queries.map((q) => ({
-          label: `${q.keys[0] ?? ''} · pos ${Math.round(q.position * 10) / 10}`,
-          value: q.impressions,
-        }))}
-        valueLabel="impr."
-      />
+      <SubHeading>your name (the query you should own)</SubHeading>
+      <RankTable rows={brand.map(queryRow)} valueLabel="impr." />
+      <SubHeading>topic queries</SubHeading>
+      <RankTable rows={topic.map(queryRow)} valueLabel="impr." />
       <SubHeading>pages</SubHeading>
       <RankTable
         rows={seo.pages.map((p) => ({
