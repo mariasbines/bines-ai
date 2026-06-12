@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextFetchEvent, NextRequest } from 'next/server';
+import { identifyAiCrawler } from '@/lib/stats/ai-crawlers';
+import { appendCrawlerHit } from '@/lib/stats/crawler-log/append';
 
 /**
  * User-Agent substrings of bots that ignore robots.txt's disallow directive.
@@ -59,7 +61,7 @@ function unauthorized(): NextResponse {
 }
 
 /**
- * HTTP Basic Auth gate for /argue/log. Reads `ARGUE_LOG_PASSWORD` from
+ * HTTP Basic Auth gate for admin routes (ADMIN_PATHS). Reads `ARGUE_LOG_PASSWORD` from
  * the environment; fail-closed (503) if unconfigured. Username is ignored
  * — the password alone is the secret. Returns null when the request is
  * authorised; returns a 401 response otherwise.
@@ -91,16 +93,19 @@ function checkAdminAuth(req: NextRequest): NextResponse | null {
   return null;
 }
 
-export function middleware(req: NextRequest): NextResponse {
+/** Admin-only path prefixes — basic auth gate (shared ARGUE_LOG_PASSWORD). */
+const ADMIN_PATHS = ['/argue/log', '/stats'];
+
+export function middleware(req: NextRequest, event: NextFetchEvent): NextResponse {
   const path = req.nextUrl.pathname;
 
-  // /argue/log and any sub-path is admin-only — basic auth gate.
-  if (path === '/argue/log' || path.startsWith('/argue/log/')) {
+  if (ADMIN_PATHS.some((p) => path === p || path.startsWith(`${p}/`))) {
     const denied = checkAdminAuth(req);
     if (denied) return denied;
   }
 
-  const ua = (req.headers.get('user-agent') ?? '').toLowerCase();
+  const rawUa = req.headers.get('user-agent') ?? '';
+  const ua = rawUa.toLowerCase();
   if (ua && BLOCKED_BOT_UA.some((needle) => ua.includes(needle))) {
     return new NextResponse(SNARK, {
       status: 403,
@@ -112,6 +117,26 @@ export function middleware(req: NextRequest): NextResponse {
       },
     });
   }
+
+  // AEO signal: invited AI crawlers don't run the client analytics script,
+  // so they're invisible to Vercel Web Analytics. Log their page fetches to
+  // Blob for the /stats AEO panel. Fire-and-forget after the response — a
+  // logging failure must never break a crawler's (or anyone's) request.
+  const bot = identifyAiCrawler(rawUa);
+  if (bot && !path.startsWith('/api/')) {
+    event.waitUntil(
+      appendCrawlerHit({
+        schema_version: 1,
+        timestamp: new Date().toISOString(),
+        bot,
+        path: path.slice(0, 500),
+        ua: rawUa.slice(0, 300),
+      }).catch(() => {
+        // Swallowed by design — observability must not affect availability.
+      }),
+    );
+  }
+
   return NextResponse.next();
 }
 
