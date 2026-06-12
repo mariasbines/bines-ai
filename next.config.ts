@@ -33,6 +33,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }];
   },
+  async redirects() {
+    return [
+      // Memorable admin door: /logs pairs with /stats. The redirect changes
+      // the address, not the lock — the target is Basic-auth gated in
+      // middleware.
+      { source: '/logs', destination: '/argue/log', permanent: false },
+    ];
+  },
 };
 
 const withMDX = createMDX({
