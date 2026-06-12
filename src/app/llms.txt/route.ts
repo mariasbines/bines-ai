@@ -11,7 +11,8 @@ import { SITE } from '@/lib/content/site';
  * attribution. Fetches of this path by invited crawlers land in the
  * crawler log like any other page, so /stats shows who's reading it.
  *
- * Static at build time (content comes from the filesystem), same as rss.xml.
+ * Rendered per request like rss.xml (Next 15 route handlers are dynamic by
+ * default) — fine, it's a filesystem read.
  */
 
 const SITE_URL = SITE.canonicalUrl;
