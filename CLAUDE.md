@@ -44,7 +44,7 @@ The phase workflow (concept → context → architecture → assessment → stor
 
 - **Collection**: Vercel Web Analytics (`<Analytics />` in `layout.tsx`, cookieless) + AI-crawler hit logging in `middleware.ts` (invited bots only, one Blob object per hit under `crawler-hits/`).
 - **Read-back**: `/stats` — private dashboard (visits / argue usage / AEO / SEO), server-rendered, no client JS. Gated by the same Basic-auth as `/argue/log` (`ARGUE_LOG_PASSWORD`). Library code in `src/lib/stats/`.
-- **Env vars**: `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` (visits panel; undocumented dashboard endpoints — shapes pinned in `vercel-analytics.ts`), `GSC_CLIENT_EMAIL` + `GSC_PRIVATE_KEY` (Search Console service account, property `sc-domain:bines.ai`). Every panel has an honest unconfigured/unavailable state — never render a confident zero when the data source is unreachable.
+- **Env vars**: `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` (visits panel; undocumented dashboard endpoints — shapes pinned in `vercel-analytics.ts`), `GSC_CLIENT_ID` + `GSC_CLIENT_SECRET` + `GSC_REFRESH_TOKEN` (Search Console via OAuth refresh token from Maria's account — service-account keys are blocked by her Google org policy; property `sc-domain:bines.ai`). Every panel has an honest unconfigured/unavailable state — never render a confident zero when the data source is unreachable.
 
 ## PR review flow
 

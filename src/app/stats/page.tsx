@@ -348,8 +348,8 @@ function SeoPanel({ seo }: { seo: SearchConsoleStats }) {
   if (seo.status === 'unconfigured') {
     return (
       <Unavailable>
-        not connected — verify bines.ai in Google Search Console, then set
-        GSC_CLIENT_EMAIL and GSC_PRIVATE_KEY.
+        not connected — set GSC_CLIENT_ID, GSC_CLIENT_SECRET and
+        GSC_REFRESH_TOKEN (one-time OAuth consent from the property owner).
       </Unavailable>
     );
   }

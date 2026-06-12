@@ -1,30 +1,18 @@
-// @vitest-environment node
-//
-// The JWT signing path needs a real crypto.subtle. jsdom doesn't provide
-// one, and stubbing the `crypto` global works on some Node versions and
-// not others (passed locally on 24, failed on CI's 20). Running this one
-// file in the node environment uses Node's native WebCrypto — the same
-// global the code sees in production — with no stubbing at all.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generateKeyPairSync } from 'node:crypto';
 import {
   readSearchConsoleStats,
   splitBrandQueries,
   type SearchRow,
 } from '../search-console';
 
-const ORIG_EMAIL = process.env.GSC_CLIENT_EMAIL;
-const ORIG_KEY = process.env.GSC_PRIVATE_KEY;
+const ENV_KEYS = [
+  'GSC_CLIENT_ID',
+  'GSC_CLIENT_SECRET',
+  'GSC_REFRESH_TOKEN',
+] as const;
+const ORIG = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 
 const NOW = new Date('2026-06-12T12:00:00.000Z');
-
-// A real (throwaway) RSA key so the WebCrypto RS256 signing path runs for
-// real — only the network is mocked.
-const { privateKey: TEST_PEM } = generateKeyPairSync('rsa', {
-  modulusLength: 2048,
-  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-  publicKeyEncoding: { type: 'spki', format: 'pem' },
-});
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -34,29 +22,28 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 beforeEach(() => {
-  process.env.GSC_CLIENT_EMAIL = 'stats@test-project.iam.gserviceaccount.com';
-  // Vercel env vars flatten newlines to literal \n — exercise that path.
-  process.env.GSC_PRIVATE_KEY = TEST_PEM.replace(/\n/g, '\\n');
+  process.env.GSC_CLIENT_ID = 'test-client.apps.googleusercontent.com';
+  process.env.GSC_CLIENT_SECRET = 'test-secret';
+  process.env.GSC_REFRESH_TOKEN = '1//test-refresh-token';
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  if (ORIG_EMAIL === undefined) delete process.env.GSC_CLIENT_EMAIL;
-  else process.env.GSC_CLIENT_EMAIL = ORIG_EMAIL;
-  if (ORIG_KEY === undefined) delete process.env.GSC_PRIVATE_KEY;
-  else process.env.GSC_PRIVATE_KEY = ORIG_KEY;
+  for (const k of ENV_KEYS) {
+    if (ORIG[k] === undefined) delete process.env[k];
+    else process.env[k] = ORIG[k];
+  }
 });
 
 describe('readSearchConsoleStats', () => {
-  it('returns unconfigured when env vars are absent', async () => {
-    delete process.env.GSC_CLIENT_EMAIL;
-    delete process.env.GSC_PRIVATE_KEY;
+  it('returns unconfigured when any of the three env vars is absent', async () => {
+    delete process.env.GSC_REFRESH_TOKEN;
     expect(await readSearchConsoleStats(28, { now: NOW })).toEqual({
       status: 'unconfigured',
     });
   });
 
-  it('signs a JWT, exchanges it, and maps the three queries', async () => {
+  it('exchanges the refresh token and maps the three queries', async () => {
     const row = (keys: string[] | undefined, impressions: number) => ({
       ...(keys ? { keys } : {}),
       clicks: 3,
@@ -64,27 +51,36 @@ describe('readSearchConsoleStats', () => {
       ctr: 0.1,
       position: 7.43,
     });
-    const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-      const u = String(url);
-      if (u.includes('oauth2.googleapis.com/token')) {
-        const body = String(init?.body);
-        expect(body).toContain('jwt-bearer');
-        // assertion=<header>.<claims>.<sig>
-        expect(body.split('assertion=')[1].split('.').length).toBe(3);
-        return jsonResponse({ access_token: 'ya29.test' });
-      }
-      expect(u).toContain(encodeURIComponent('sc-domain:bines.ai'));
-      const body = JSON.parse(String(init?.body)) as {
-        dimensions?: string[];
-      };
-      if (!body.dimensions) return jsonResponse({ rows: [row(undefined, 200)] });
-      if (body.dimensions[0] === 'query') {
-        return jsonResponse({ rows: [row(['boring ai'], 120)] });
-      }
-      return jsonResponse({
-        rows: [row(['https://bines.ai/fieldwork/10-excellent-manners'], 80)],
-      });
-    });
+    const fetchMock = vi.fn(
+      async (url: RequestInfo | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u.includes('oauth2.googleapis.com/token')) {
+          const body = new URLSearchParams(String(init?.body));
+          expect(body.get('grant_type')).toBe('refresh_token');
+          expect(body.get('refresh_token')).toBe('1//test-refresh-token');
+          expect(body.get('client_id')).toBe(
+            'test-client.apps.googleusercontent.com',
+          );
+          return jsonResponse({ access_token: 'ya29.test' });
+        }
+        expect(u).toContain(encodeURIComponent('sc-domain:bines.ai'));
+        expect(
+          (init?.headers as Record<string, string>).Authorization,
+        ).toBe('Bearer ya29.test');
+        const body = JSON.parse(String(init?.body)) as {
+          dimensions?: string[];
+        };
+        if (!body.dimensions) {
+          return jsonResponse({ rows: [row(undefined, 200)] });
+        }
+        if (body.dimensions[0] === 'query') {
+          return jsonResponse({ rows: [row(['boring ai'], 120)] });
+        }
+        return jsonResponse({
+          rows: [row(['https://bines.ai/fieldwork/10-excellent-manners'], 80)],
+        });
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const stats = await readSearchConsoleStats(28, { now: NOW });
@@ -103,7 +99,7 @@ describe('readSearchConsoleStats', () => {
   it('returns an error status when the token exchange fails', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse({ error: 'invalid_grant' }, 403)),
+      vi.fn(async () => jsonResponse({ error: 'invalid_grant' }, 400)),
     );
     const stats = await readSearchConsoleStats(28, { now: NOW });
     expect(stats.status).toBe('error');
@@ -131,10 +127,33 @@ describe('readSearchConsoleStats', () => {
     });
     expect(stats.queries).toEqual([]);
   });
+
+  it('normalises a null position from GSC to a number at the parse boundary', async () => {
+    const fetchMock = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url).includes('oauth2.googleapis.com/token')) {
+        return jsonResponse({ access_token: 'ya29.test' });
+      }
+      return jsonResponse({
+        rows: [
+          { keys: ['x'], clicks: 0, impressions: 0, ctr: 0, position: null },
+        ],
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const stats = await readSearchConsoleStats(28, { now: NOW });
+    expect(stats.status).toBe('ok');
+    if (stats.status !== 'ok') return;
+    expect(stats.queries[0].position).toBe(0);
+  });
 });
 
 describe('splitBrandQueries', () => {
-  const row = (q: string, impressions: number, position: number): SearchRow => ({
+  const row = (
+    q: string,
+    impressions: number,
+    position: number,
+  ): SearchRow => ({
     keys: [q],
     clicks: 1,
     impressions,
