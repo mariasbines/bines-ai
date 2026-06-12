@@ -164,7 +164,12 @@ async function searchAnalyticsQuery(
     throw new Error(`searchAnalytics query failed: ${res.status}`);
   }
   const json = (await res.json()) as { rows?: SearchRow[] };
-  return json.rows ?? [];
+  // GSC can return null position on zero-impression rows; normalise at the
+  // parse boundary so downstream arithmetic never sees a non-number.
+  return (json.rows ?? []).map((r) => ({
+    ...r,
+    position: typeof r.position === 'number' ? r.position : 0,
+  }));
 }
 
 /**

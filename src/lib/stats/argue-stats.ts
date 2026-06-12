@@ -1,8 +1,6 @@
 import type { ArgueLogEntry } from '@/lib/argue-log/schema';
 
 /**
- * Aggregation over argue-log entries for the /stats chat panel.
- *
  * The pure aggregator is separated from the Blob-reading loader so it can
  * be unit-tested without storage mocks. Loading lives in the page (it
  * composes readArgueLogDay, which is already tested in argue-log).

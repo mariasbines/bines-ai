@@ -68,8 +68,7 @@ export default function RootLayout({
         <JsonLd data={websiteJsonLd()} />
         <JsonLd data={personJsonLd()} />
         <PageShell>{children}</PageShell>
-        {/* Vercel Web Analytics collection script. Cookieless, no consent
-            banner required. Read-back lives at /stats (admin-only). */}
+        {/* Cookieless — no consent banner required. */}
         <Analytics />
       </body>
     </html>

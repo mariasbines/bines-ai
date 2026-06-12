@@ -93,7 +93,6 @@ function checkAdminAuth(req: NextRequest): NextResponse | null {
   return null;
 }
 
-/** Admin-only path prefixes — basic auth gate (shared ARGUE_LOG_PASSWORD). */
 const ADMIN_PATHS = ['/argue/log', '/stats'];
 
 export function middleware(req: NextRequest, event: NextFetchEvent): NextResponse {

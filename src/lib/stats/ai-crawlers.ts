@@ -1,14 +1,8 @@
 /**
- * AI crawler + AI referrer identification for the AEO panel on /stats.
+ * Pure, no env, no I/O — must stay safe to import from edge middleware.
  *
- * Pure, no env, no I/O — safe to import from middleware (edge) and from
- * server components alike.
- *
- * The crawler table mirrors the *invited* AI bots in src/app/robots.ts.
- * If a bot is added or removed there, update this table in the same PR
- * (the /stats AEO panel counts only bots we have chosen to welcome —
- * blocked scrapers get a 403 in middleware and are deliberately not part
- * of the answer-engine story).
+ * The crawler table mirrors the *invited* AI bots in src/app/robots.ts;
+ * if a bot is added or removed there, update this table in the same PR.
  */
 
 /** UA substring (lowercase) → display name shown on /stats. Order matters:

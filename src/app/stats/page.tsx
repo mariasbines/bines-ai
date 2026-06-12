@@ -13,16 +13,11 @@ import {
 /**
  * /stats — Maria's private analytics dashboard.
  *
- * Four panels, each with an honest empty/unconfigured state (a panel that
- * can't reach its data says so — it never shows a confident zero):
- *   visits  — Vercel Web Analytics read-back (sapphire)
- *   argue   — chat usage aggregated from the argue-log (ruby)
- *   aeo     — invited AI-crawler fetches + AI-surface referrals (amethyst)
- *   seo     — Google Search Console performance (emerald)
- *
- * Gated by Basic auth in middleware.ts (shared ARGUE_LOG_PASSWORD), hidden
- * from robots, absent from the sitemap, linked from nowhere. Server-rendered
- * HTML only — no client JavaScript, charts are CSS bars.
+ * Two invariants the code can't show on its own: every panel must keep an
+ * honest unconfigured/unavailable state (never a confident zero when the
+ * data source is unreachable), and the page must render with no client
+ * JavaScript (site-wide rule) — hence CSS bars, not a chart library.
+ * Auth lives in middleware.ts (ADMIN_PATHS), not here.
  */
 
 export const metadata: Metadata = {
