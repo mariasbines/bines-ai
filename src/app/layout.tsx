@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Fraunces, Inter, JetBrains_Mono } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { PageShell } from '@/components/PageShell';
 import { JsonLd } from '@/components/JsonLd';
@@ -67,6 +68,9 @@ export default function RootLayout({
         <JsonLd data={websiteJsonLd()} />
         <JsonLd data={personJsonLd()} />
         <PageShell>{children}</PageShell>
+        {/* Vercel Web Analytics collection script. Cookieless, no consent
+            banner required. Read-back lives at /stats (admin-only). */}
+        <Analytics />
       </body>
     </html>
   );

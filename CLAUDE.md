@@ -40,6 +40,12 @@ The phase workflow (concept → context → architecture → assessment → stor
 - **Low-fi Maria-to-camera video is intentional.** Do not suggest polishing it.
 - **AI chat ("argue with me") is a first-class feature**, not a bolt-on. v1 MVP uses Anthropic API + strong system prompt anchored on Maria's voice. v2 adds corpus awareness.
 
+## Analytics & admin surfaces
+
+- **Collection**: Vercel Web Analytics (`<Analytics />` in `layout.tsx`, cookieless) + AI-crawler hit logging in `middleware.ts` (invited bots only, one Blob object per hit under `crawler-hits/`).
+- **Read-back**: `/stats` — private dashboard (visits / argue usage / AEO / SEO), server-rendered, no client JS. Gated by the same Basic-auth as `/argue/log` (`ARGUE_LOG_PASSWORD`). Library code in `src/lib/stats/`.
+- **Env vars**: `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` (visits panel; undocumented dashboard endpoints — shapes pinned in `vercel-analytics.ts`), `GSC_CLIENT_EMAIL` + `GSC_PRIVATE_KEY` (Search Console service account, property `sc-domain:bines.ai`). Every panel has an honest unconfigured/unavailable state — never render a confident zero when the data source is unreachable.
+
 ## PR review flow
 
 Three-tier review protection for every merge to `master`:
