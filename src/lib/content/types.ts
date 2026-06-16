@@ -179,7 +179,7 @@ export type TasteItem = z.infer<typeof TASTE_ITEM>;
 
 export const TASTE_FRONTMATTER = z.object({
   updated: z.iso.date(),
-  items: z.array(TASTE_ITEM).min(1).max(8),
+  items: z.array(TASTE_ITEM).min(1).max(12),
   accent: ACCENT_TOKEN.optional(),
 });
 export type TasteFrontmatter = z.infer<typeof TASTE_FRONTMATTER>;

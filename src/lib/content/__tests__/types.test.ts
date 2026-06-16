@@ -178,8 +178,8 @@ describe('TASTE_FRONTMATTER', () => {
     const r = TASTE_FRONTMATTER.safeParse({ updated: '2026-04-22', items: [] });
     expect(r.success).toBe(false);
   });
-  it('caps at 8 items', () => {
-    const items = Array.from({ length: 9 }, (_, i) => ({ title: `${i}` }));
+  it('caps at 12 items', () => {
+    const items = Array.from({ length: 13 }, (_, i) => ({ title: `${i}` }));
     const r = TASTE_FRONTMATTER.safeParse({ updated: '2026-04-22', items });
     expect(r.success).toBe(false);
   });
