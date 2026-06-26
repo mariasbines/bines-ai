@@ -68,6 +68,23 @@ export function getChatDailyRatelimit(): Ratelimit | null {
 }
 
 /**
+ * Touch the rate-limit Redis so Upstash doesn't archive the free-tier
+ * Marketplace database for inactivity. Writes a single self-expiring key
+ * (no key accumulation) and returns the timestamp written, or `null` when
+ * no Redis credentials are present (dev/CI) — same permissive posture as the
+ * limiter factories above. Called by the weekly /api/keep-warm cron.
+ */
+export async function touchChatRedis(): Promise<number | null> {
+  const redis = getRedisFromEnv();
+  if (!redis) return null;
+  const now = Date.now();
+  // 14-day TTL: the heartbeat self-expires well before the next weekly run,
+  // so the key never lingers and never accumulates.
+  await redis.set('bines:chat:keepalive', now, { ex: 1_209_600 });
+  return now;
+}
+
+/**
  * Reset cached instances. Test-only — production relies on module-level
  * memoisation across requests.
  */
