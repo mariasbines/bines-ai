@@ -1,7 +1,7 @@
 /**
  * Site footer — rendered beneath the AntipatternsStrip in PageShell.
  * Three things: dynamic copyright (so the year never goes stale), a small
- * link row to /about + /privacy + /argue, and a quiet "my own work, mostly"
+ * link row to /about + /privacy + /argue + /work, and a quiet "my own work, mostly"
  * tag that callbacks the /now closer.
  *
  * Footer links use plain <a> rather than next/link by design. PageShell is
@@ -42,6 +42,11 @@ export function Footer() {
           <li>
             <a href="/argue" className={linkClass}>
               argue
+            </a>
+          </li>
+          <li>
+            <a href="/work" className={linkClass}>
+              work
             </a>
           </li>
         </ul>
