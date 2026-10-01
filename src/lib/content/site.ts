@@ -24,7 +24,6 @@ export const NAV: readonly NavItem[] = [
   { href: '/postcards', label: 'Postcards' },
   { href: '/gallery', label: 'Gallery' },
   { href: '/changed-my-mind', label: 'Changed my mind' },
-  { href: '/now', label: 'Now' },
   { href: '/taste', label: 'Taste' },
   { href: '/argue', label: 'Argue' },
   { href: '/archive', label: 'Archive' },
