@@ -34,13 +34,16 @@ export function CurrentlyStrip({ currently, stats, updated, className }: Current
       className={`font-mono text-xs tracking-wide ${className ?? ''}`}
       aria-label="Current state of the site"
     >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-1">
-        <span className="text-ink/60">currently</span>
+      <Link
+        href="/now"
+        className={`group mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 no-underline`}
+      >
+        <span className="text-ink/60 group-hover:text-ink/90">currently</span>
         <span className="accent-cycle" aria-hidden="true">→</span>
-        <Link href="/now" className={linkClass}>
+        <span className="underline decoration-transparent decoration-1 underline-offset-2 transition-colors group-hover:decoration-current motion-reduce:transition-none">
           {currently}
-        </Link>
-      </div>
+        </span>
+      </Link>
       <div className="text-ink/60">
         {stats.fieldwork}{' '}
         <Link href="/fieldwork" className={linkClass}>

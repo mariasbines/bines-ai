@@ -44,6 +44,6 @@ describe('<CurrentlyStrip>', () => {
         updated={new Date('2026-10-01')}
       />,
     );
-    expect(screen.getByRole('link', { name: 'Downsizing my AI council.' })).toHaveAttribute('href', '/now');
+    expect(screen.getByRole('link', { name: /currently.*Downsizing my AI council\./ })).toHaveAttribute('href', '/now');
   });
 });
