@@ -65,3 +65,40 @@ body {
     animation: none;
   }
 }
+
+/* /work hero: the gate draws once on load, then the legend appears.
+   Reduced motion shows the finished drawing straight away. */
+@keyframes work-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes work-pop {
+  to { opacity: 1; }
+}
+.work-draw {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: work-draw 1.4s cubic-bezier(0.6, 0.1, 0.3, 1) forwards;
+}
+.work-draw-late {
+  animation-delay: 0.9s;
+}
+.work-pop {
+  opacity: 0;
+  animation: work-pop 0.35s ease-out forwards;
+}
+.work-pop-d1 {
+  animation-delay: 1.5s;
+}
+.work-pop-d2 {
+  animation-delay: 2.2s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .work-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .work-pop {
+    animation: none;
+    opacity: 1;
+  }
+}
