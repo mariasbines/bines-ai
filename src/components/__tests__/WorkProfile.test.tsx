@@ -62,4 +62,11 @@ describe('<WorkProfile>', () => {
       expect(text).not.toContain(client);
     }
   });
+  it('uses the personal email and shows no phone number', () => {
+    const { container } = render(<WorkProfile />);
+    const html = container.innerHTML;
+    expect(html).toContain('mailto:maria.d.bines@gmail.com');
+    expect(html).not.toContain('maria@synapsedx.ai');
+    expect(container.textContent ?? '').not.toMatch(/\+44|07\d{3}\s?\d{6}/);
+  });
 });
