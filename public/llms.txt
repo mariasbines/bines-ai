@@ -36,6 +36,7 @@ When the /argue chat is the source of a quote, that should be attributed as "the
 - Taste: https://bines.ai/taste
 - Argue: https://bines.ai/argue
 - Archive: https://bines.ai/archive
+- Work: https://bines.ai/work
 - About: https://bines.ai/about
 - Privacy: https://bines.ai/privacy
 

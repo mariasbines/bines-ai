@@ -84,6 +84,7 @@ ${postcardLines.join('\n')}
 - [Archive](${SITE_URL}/archive): every piece by status
 - [Taste](${SITE_URL}/taste): current reads, watches, listens
 - [Argue](${SITE_URL}/argue): chat with an AI trained on her voice — disagreement welcome
+- [Work](${SITE_URL}/work): her professional profile, for fractional enterprise AI and architecture work
 
 ## Optional
 

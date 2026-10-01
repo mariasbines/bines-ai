@@ -28,6 +28,7 @@ export const NAV: readonly NavItem[] = [
   { href: '/taste', label: 'Taste' },
   { href: '/argue', label: 'Argue' },
   { href: '/archive', label: 'Archive' },
+  { href: '/work', label: 'Work' },
 ] as const;
 
 // Placeholder values — story 001.008 replaces these with live data from /now MDX

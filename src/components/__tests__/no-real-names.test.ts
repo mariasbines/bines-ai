@@ -38,6 +38,8 @@ const SCAN_PATHS = [
   'content/taste.mdx',
   'src/lib/chat/system-prompt.ts',
   'src/lib/chat/fieldwork-01.ts',
+  'src/app/work',
+  'src/components/WorkProfile.tsx',
 ];
 
 function gitGrepBlockedName(name: string): string {
