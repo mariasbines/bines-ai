@@ -156,7 +156,7 @@ export const ROLES: { org: string; c: Jewel; role: string; beat: string; what: s
     c: 'emerald',
     role: 'Director, Digital Analytics, Innovation & Industry. Apr 2012 to Feb 2020',
     beat: 'Machine learning before it was called AI',
-    what: 'Built early machine learning prototypes on Azure and spoke on predictive analytics in healthcare to 5,000 people. Delivered the first Power BI in North America, at QBE, and led data programmes and deals up to $3.1m.',
+    what: 'Built early machine learning prototypes on Azure and spoke on predictive analytics in healthcare to 5,000 people. Delivered the first Power BI implementation in North America, and led data programmes and deals up to $3.1m.',
   },
 ];
 
@@ -179,7 +179,7 @@ const TALKS: { dot: string; c: Jewel; title: string; where: string; href?: strin
     c: 'topaz',
     title: 'Broker bot, meet underwriter bot',
     where:
-      'Google, with Endava, early 2023. AI agents as broker and underwriter, with a human underwriter working across both',
+      'Early 2023, to a big tech audience. AI agents as broker and underwriter, with a human underwriter working across both',
   },
   { dot: '5,000', c: 'emerald', title: 'Predictive analytics in healthcare', where: 'Avanade Tech Summit' },
 ];

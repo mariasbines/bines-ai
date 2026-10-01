@@ -55,4 +55,11 @@ describe('<WorkProfile>', () => {
     const { container } = render(<WorkProfile />);
     expect(container.textContent).not.toContain('—');
   });
+  it('does not name clients (bines.ai rule: no client name-dropping)', () => {
+    const { container } = render(<WorkProfile />);
+    const text = container.textContent ?? '';
+    for (const client of ['QBE', 'Google, with Endava']) {
+      expect(text).not.toContain(client);
+    }
+  });
 });
