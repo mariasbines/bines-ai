@@ -13,7 +13,7 @@ import Link from 'next/link';
  */
 
 export const PROFILE_PDF_HREF = '/media/work/maria-stone-bines-profile.pdf';
-const EMAIL_HREF = 'mailto:maria@synapsedx.ai?subject=Fractional%20architecture%20%2F%20AI';
+const EMAIL_HREF = 'mailto:maria.d.bines@gmail.com?subject=Fractional%20architecture%20%2F%20AI';
 
 type Jewel = 'emerald' | 'sapphire' | 'ruby' | 'topaz' | 'amethyst' | 'ink';
 const v = (c: Jewel) => `var(--color-${c})`;
@@ -492,7 +492,7 @@ export function WorkProfile() {
                 href={EMAIL_HREF}
                 className={`${btn} border-paper bg-paper text-ink focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-topaz`}
               >
-                maria@synapsedx.ai
+                maria.d.bines@gmail.com
               </a>
               <Link
                 href="/"
