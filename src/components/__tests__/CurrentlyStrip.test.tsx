@@ -36,4 +36,14 @@ describe('<CurrentlyStrip>', () => {
       '/changed-my-mind',
     );
   });
+  it('links the current thought to /now', () => {
+    render(
+      <CurrentlyStrip
+        currently="Downsizing my AI council."
+        stats={{ fieldwork: 1, postcards: 1, changedMyMind: 1 }}
+        updated={new Date('2026-10-01')}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Downsizing my AI council.' })).toHaveAttribute('href', '/now');
+  });
 });

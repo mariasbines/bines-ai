@@ -23,8 +23,8 @@ const linkClass =
   'underline-offset-2 decoration-transparent hover:decoration-current decoration-1 underline transition-colors hover:text-ink/90 motion-reduce:transition-none';
 
 /**
- * The "currently →" data strip. Two lines: the current thought + the site
- * stats. Each count is a quiet link to its index — no shouty button styling,
+ * The "currently →" data strip. Two lines: the current thought (a quiet link
+ * to /now) + the site stats. Each count is a quiet link to its index — no shouty button styling,
  * just an underline-on-hover that rewards the curious without pretending to
  * be a CTA.
  */
@@ -37,7 +37,9 @@ export function CurrentlyStrip({ currently, stats, updated, className }: Current
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-1">
         <span className="text-ink/60">currently</span>
         <span className="accent-cycle" aria-hidden="true">→</span>
-        <span>{currently}</span>
+        <Link href="/now" className={linkClass}>
+          {currently}
+        </Link>
       </div>
       <div className="text-ink/60">
         {stats.fieldwork}{' '}
